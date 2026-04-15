@@ -12,7 +12,7 @@ import {
 import { useRouter } from "expo-router";
 
 import { theme } from "../../src/constants/theme";
-import { Platform, useApp } from "../../src/context/AppContext";
+import { Platform, SharedMember, useApp } from "../../src/context/AppContext";
 
 const billingCycles = ["monthly", "yearly"] as const;
 
@@ -24,9 +24,22 @@ function groupedByCategory(platforms: Platform[]) {
   }, {});
 }
 
+function parseSharedWith(input: string): SharedMember[] {
+  return input
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [nameRaw, ratioRaw] = part.split(":").map((value) => value.trim());
+      const ratio = Number(ratioRaw);
+      return { name: nameRaw, share_ratio: Number.isFinite(ratio) ? ratio : 0 };
+    })
+    .filter((member) => member.name && member.share_ratio > 0 && member.share_ratio <= 1);
+}
+
 export default function AddScreen() {
   const router = useRouter();
-  const { addSubscription, platforms, preferredCurrency } = useApp();
+  const { addSubscription, platforms, preferredCurrency, duplicateCheck } = useApp();
   const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(null);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [renewalDate, setRenewalDate] = useState("");
@@ -34,6 +47,9 @@ export default function AddScreen() {
   const [billingCycle, setBillingCycle] = useState<(typeof billingCycles)[number]>("monthly");
   const [customName, setCustomName] = useState("");
   const [customCategory, setCustomCategory] = useState("");
+  const [trialEndDate, setTrialEndDate] = useState("");
+  const [isTrial, setIsTrial] = useState(false);
+  const [sharedWithInput, setSharedWithInput] = useState("");
 
   const groups = useMemo(() => groupedByCategory(platforms), [platforms]);
 
@@ -42,17 +58,44 @@ export default function AddScreen() {
       Alert.alert("Missing fields", "Please provide renewal date and amount.");
       return;
     }
+    if (isTrial && !trialEndDate) {
+      Alert.alert("Missing trial date", "Set a trial end date if this is a trial.");
+      return;
+    }
+
+    const payload = {
+      platform_id: selectedPlatformId ?? undefined,
+      custom_name: selectedPlatformId ? undefined : customName || undefined,
+      custom_category: selectedPlatformId ? undefined : customCategory || "Other",
+      renewal_date: renewalDate,
+      amount: Number(amount),
+      billing_cycle: billingCycle,
+      currency: preferredCurrency,
+      trial_end_date: isTrial ? trialEndDate : null,
+      is_trial: isTrial,
+      shared_with: parseSharedWith(sharedWithInput),
+    };
 
     try {
-      const result = await addSubscription({
-        platform_id: selectedPlatformId ?? undefined,
-        custom_name: selectedPlatformId ? undefined : customName || undefined,
-        custom_category: selectedPlatformId ? undefined : customCategory || "Other",
-        renewal_date: renewalDate,
-        amount: Number(amount),
-        billing_cycle: billingCycle,
-        currency: preferredCurrency,
-      });
+      const duplicate = await duplicateCheck(payload);
+      if (duplicate.is_duplicate) {
+        const continueAdd = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Potential duplicate",
+            `${duplicate.message} Continue anyway?`,
+            [
+              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              { text: "Continue", onPress: () => resolve(true) },
+            ],
+            { cancelable: false }
+          );
+        });
+        if (!continueAdd) {
+          return;
+        }
+      }
+
+      const result = await addSubscription(payload);
       if (result.requiresAuth) {
         Alert.alert(
           "Login required",
@@ -66,8 +109,11 @@ export default function AddScreen() {
       setAmount("");
       setCustomName("");
       setCustomCategory("");
+      setTrialEndDate("");
+      setIsTrial(false);
+      setSharedWithInput("");
       setShowCustomModal(false);
-      Alert.alert("Saved", "Subscription added successfully.");
+      Alert.alert("Saved", result.duplicateWarning ?? "Subscription added successfully.");
     } catch {
       Alert.alert("Error", "Could not add subscription. Check server connectivity.");
     }
@@ -143,7 +189,38 @@ export default function AddScreen() {
             </Pressable>
           ))}
         </View>
-        <Pressable style={styles.submitButton} onPress={submitSubscription}>
+        <View style={styles.toggleRow}>
+          <Pressable style={[styles.toggleChip, isTrial && styles.toggleChipActive]} onPress={() => setIsTrial(true)}>
+            <Text style={styles.toggleText}>Trial</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.toggleChip, !isTrial && styles.toggleChipActive]}
+            onPress={() => setIsTrial(false)}
+          >
+            <Text style={styles.toggleText}>Paid</Text>
+          </Pressable>
+        </View>
+        {isTrial ? (
+          <>
+            <Text style={styles.inputLabel}>Trial end date (YYYY-MM-DD)</Text>
+            <TextInput
+              style={styles.input}
+              value={trialEndDate}
+              onChangeText={setTrialEndDate}
+              placeholder="2026-11-30"
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+          </>
+        ) : null}
+        <Text style={styles.inputLabel}>Shared with (name:ratio, comma-separated)</Text>
+        <TextInput
+          style={styles.input}
+          value={sharedWithInput}
+          onChangeText={setSharedWithInput}
+          placeholder="Alice:0.5, Bob:0.25"
+          placeholderTextColor={theme.colors.textSecondary}
+        />
+        <Pressable style={styles.submitButton} onPress={() => void submitSubscription()}>
           <Text style={styles.submitButtonText}>Save subscription</Text>
         </Pressable>
       </View>
@@ -170,7 +247,7 @@ export default function AddScreen() {
               <Pressable style={styles.secondaryButton} onPress={() => setShowCustomModal(false)}>
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.submitButton} onPress={submitSubscription}>
+              <Pressable style={styles.submitButton} onPress={() => void submitSubscription()}>
                 <Text style={styles.submitButtonText}>Use custom</Text>
               </Pressable>
             </View>
@@ -276,7 +353,7 @@ const styles = StyleSheet.create({
   cycleRow: {
     flexDirection: "row",
     gap: 10,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.sm,
   },
   cycleChip: {
     borderWidth: 1,
@@ -292,6 +369,27 @@ const styles = StyleSheet.create({
   cycleText: {
     color: theme.colors.textPrimary,
     textTransform: "capitalize",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: theme.spacing.sm,
+  },
+  toggleChip: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  toggleChipActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: "#1A1328",
+  },
+  toggleText: {
+    color: theme.colors.textPrimary,
+    fontWeight: "600",
   },
   submitButton: {
     backgroundColor: theme.colors.accent,

@@ -1,8 +1,29 @@
+import * as Clipboard from "expo-clipboard";
+import * as LocalAuthentication from "expo-local-authentication";
 import { Link } from "expo-router";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useMemo, useState } from "react";
 
 import { currencies, theme } from "../../src/constants/theme";
 import { useApp } from "../../src/context/AppContext";
+
+function parseCategoryLimits(input: string): Record<string, number> {
+  const entries = input
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [categoryRaw, limitRaw] = entry.split(":").map((value) => value.trim());
+      const limit = Number(limitRaw);
+      return { category: categoryRaw, limit };
+    })
+    .filter((entry) => entry.category && Number.isFinite(entry.limit) && entry.limit > 0);
+  const result: Record<string, number> = {};
+  for (const entry of entries) {
+    result[entry.category] = entry.limit;
+  }
+  return result;
+}
 
 export default function SettingsScreen() {
   const {
@@ -17,7 +38,38 @@ export default function SettingsScreen() {
     setRemindersEnabled,
     reminderLeadDays,
     setReminderLeadDays,
+    quietHoursEnabled,
+    setQuietHoursEnabled,
+    quietHoursStart,
+    quietHoursEnd,
+    setQuietHours,
+    budgetConfig,
+    setBudgetConfig,
+    exportJson,
+    exportCsv,
+    importJson,
+    isBiometricLockEnabled,
+    setBiometricLockEnabled,
+    lockApp,
+    fxRates,
   } = useApp();
+
+  const [budgetLimitInput, setBudgetLimitInput] = useState(
+    budgetConfig?.monthly_limit ? String(budgetConfig.monthly_limit) : ""
+  );
+  const [categoryLimitsInput, setCategoryLimitsInput] = useState(
+    budgetConfig
+      ? Object.entries(budgetConfig.category_limits)
+          .map(([category, limit]) => `${category}:${limit}`)
+          .join(", ")
+      : ""
+  );
+  const [importJsonInput, setImportJsonInput] = useState("");
+
+  const biometricLabel = useMemo(
+    () => (isBiometricLockEnabled ? "Biometric lock ON" : "Biometric lock OFF"),
+    [isBiometricLockEnabled]
+  );
 
   async function handleCurrencyChange(currency: string) {
     try {
@@ -54,8 +106,91 @@ export default function SettingsScreen() {
     }
   }
 
+  async function handleQuietHours(enabled: boolean) {
+    try {
+      await setQuietHoursEnabled(enabled);
+    } catch {
+      Alert.alert("Error", "Quiet hour settings could not be updated.");
+    }
+  }
+
+  async function handleQuietWindow(startHour: number, endHour: number) {
+    try {
+      await setQuietHours(startHour, endHour);
+    } catch {
+      Alert.alert("Error", "Quiet hour window could not be updated.");
+    }
+  }
+
+  async function handleSaveBudget() {
+    const monthlyLimit = Number(budgetLimitInput);
+    if (!Number.isFinite(monthlyLimit) || monthlyLimit <= 0) {
+      Alert.alert("Invalid budget", "Enter a valid monthly budget amount.");
+      return;
+    }
+    try {
+      await setBudgetConfig({
+        monthly_limit: monthlyLimit,
+        category_limits: parseCategoryLimits(categoryLimitsInput),
+      });
+      Alert.alert("Saved", "Budget updated.");
+    } catch {
+      Alert.alert("Error", "Could not save budget.");
+    }
+  }
+
+  async function handleExportJson() {
+    try {
+      const data = await exportJson();
+      await Clipboard.setStringAsync(data);
+      Alert.alert("Export complete", "JSON export copied to clipboard.");
+    } catch {
+      Alert.alert("Error", "Could not export JSON.");
+    }
+  }
+
+  async function handleExportCsv() {
+    try {
+      const data = await exportCsv();
+      await Clipboard.setStringAsync(data);
+      Alert.alert("Export complete", "CSV export copied to clipboard.");
+    } catch {
+      Alert.alert("Error", "Could not export CSV.");
+    }
+  }
+
+  async function handleImportJson() {
+    try {
+      const parsed = JSON.parse(importJsonInput) as { subscriptions?: Record<string, unknown>[] };
+      const subscriptions = parsed.subscriptions ?? [];
+      if (!Array.isArray(subscriptions)) {
+        Alert.alert("Invalid payload", "Expected a `subscriptions` array.");
+        return;
+      }
+      const imported = await importJson({ subscriptions });
+      Alert.alert("Import complete", `${imported} subscriptions imported.`);
+      setImportJsonInput("");
+    } catch {
+      Alert.alert("Error", "Could not import JSON payload.");
+    }
+  }
+
+  async function handleBiometricToggle() {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    if (!hasHardware || !isEnrolled) {
+      Alert.alert("Unavailable", "Biometric hardware is not available or no biometric is enrolled.");
+      return;
+    }
+    const target = !isBiometricLockEnabled;
+    await setBiometricLockEnabled(target);
+    if (target) {
+      lockApp();
+    }
+  }
+
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Currency</Text>
         <Text style={styles.cardSubtitle}>Default is EUR, but you can switch anytime.</Text>
@@ -65,7 +200,7 @@ export default function SettingsScreen() {
             return (
               <Pressable
                 key={currency}
-                onPress={() => handleCurrencyChange(currency)}
+                onPress={() => void handleCurrencyChange(currency)}
                 style={[styles.currencyChip, active && styles.currencyChipActive]}
               >
                 <Text style={[styles.currencyText, active && styles.currencyTextActive]}>{currency}</Text>
@@ -73,6 +208,11 @@ export default function SettingsScreen() {
             );
           })}
         </View>
+        {fxRates ? (
+          <Text style={styles.metaText}>
+            FX source: {fxRates.source} {fxRates.fetched_at ? `· Updated ${fxRates.fetched_at}` : ""}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.card}>
@@ -80,12 +220,12 @@ export default function SettingsScreen() {
         <Text style={styles.cardSubtitle}>
           Push notifications before renewal dates are enabled by requesting permissions.
         </Text>
-        <Pressable style={styles.primaryButton} onPress={handleNotifications}>
+        <Pressable style={styles.primaryButton} onPress={() => void handleNotifications()}>
           <Text style={styles.primaryButtonText}>
             {notificationStatus === "granted" ? "Notifications enabled" : "Enable notifications"}
           </Text>
         </Pressable>
-        <View style={styles.reminderToggleRow}>
+        <View style={styles.row}>
           <Pressable
             style={[styles.toggleChip, remindersEnabled && styles.toggleChipActive]}
             onPress={() => void handleToggleReminders(true)}
@@ -117,11 +257,107 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card}>
+        <Text style={styles.cardTitle}>Quiet hours</Text>
+        <Text style={styles.cardSubtitle}>Suppress reminders during selected hours.</Text>
+        <View style={styles.row}>
+          <Pressable
+            style={[styles.toggleChip, quietHoursEnabled && styles.toggleChipActive]}
+            onPress={() => void handleQuietHours(true)}
+          >
+            <Text style={styles.toggleChipText}>Enabled</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.toggleChip, !quietHoursEnabled && styles.toggleChipActive]}
+            onPress={() => void handleQuietHours(false)}
+          >
+            <Text style={styles.toggleChipText}>Disabled</Text>
+          </Pressable>
+        </View>
+        <View style={styles.currencyGrid}>
+          {[
+            { label: "22 → 8", start: 22, end: 8 },
+            { label: "23 → 7", start: 23, end: 7 },
+            { label: "0 → 6", start: 0, end: 6 },
+          ].map((slot) => {
+            const active = quietHoursStart === slot.start && quietHoursEnd === slot.end;
+            return (
+              <Pressable
+                key={slot.label}
+                style={[styles.currencyChip, active && styles.currencyChipActive]}
+                onPress={() => void handleQuietWindow(slot.start, slot.end)}
+              >
+                <Text style={[styles.currencyText, active && styles.currencyTextActive]}>{slot.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Budgets</Text>
+        <Text style={styles.cardSubtitle}>
+          Set monthly and category limits using format: Video Streaming:60, Music:20
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={budgetLimitInput}
+          onChangeText={setBudgetLimitInput}
+          keyboardType="decimal-pad"
+          placeholder={`Monthly budget (${preferredCurrency})`}
+          placeholderTextColor={theme.colors.textSecondary}
+        />
+        <TextInput
+          style={styles.input}
+          value={categoryLimitsInput}
+          onChangeText={setCategoryLimitsInput}
+          placeholder="Category limits"
+          placeholderTextColor={theme.colors.textSecondary}
+        />
+        <Pressable style={styles.primaryButton} onPress={() => void handleSaveBudget()}>
+          <Text style={styles.primaryButtonText}>Save budget</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Data export/import</Text>
+        <Text style={styles.cardSubtitle}>
+          Export to clipboard and import from JSON payload. Keeps your data portable.
+        </Text>
+        <View style={styles.row}>
+          <Pressable style={styles.secondaryButton} onPress={() => void handleExportJson()}>
+            <Text style={styles.secondaryButtonText}>Export JSON</Text>
+          </Pressable>
+          <Pressable style={styles.secondaryButton} onPress={() => void handleExportCsv()}>
+            <Text style={styles.secondaryButtonText}>Export CSV</Text>
+          </Pressable>
+        </View>
+        <TextInput
+          style={[styles.input, styles.importInput]}
+          value={importJsonInput}
+          onChangeText={setImportJsonInput}
+          multiline
+          placeholder='Paste JSON export payload here {"subscriptions":[...]}'
+          placeholderTextColor={theme.colors.textSecondary}
+        />
+        <Pressable style={styles.primaryButton} onPress={() => void handleImportJson()}>
+          <Text style={styles.primaryButtonText}>Import JSON</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Security</Text>
+        <Text style={styles.cardSubtitle}>Enable app lock and unlock using local biometrics.</Text>
+        <Pressable style={styles.primaryButton} onPress={() => void handleBiometricToggle()}>
+          <Text style={styles.primaryButtonText}>{biometricLabel}</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.card}>
         <Text style={styles.cardTitle}>Account</Text>
         {token ? (
           <>
             <Text style={styles.cardSubtitle}>Logged in as {userEmail}</Text>
-            <Pressable style={styles.secondaryButton} onPress={logout}>
+            <Pressable style={styles.secondaryButton} onPress={() => void logout()}>
               <Text style={styles.secondaryButtonText}>Logout</Text>
             </Pressable>
           </>
@@ -138,7 +374,7 @@ export default function SettingsScreen() {
           </>
         )}
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -146,8 +382,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  content: {
     padding: theme.spacing.md,
     gap: theme.spacing.md,
+    paddingBottom: 36,
   },
   card: {
     borderWidth: 1,
@@ -164,6 +403,16 @@ const styles = StyleSheet.create({
   },
   cardSubtitle: {
     color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.sm,
+  },
+  metaText: {
+    color: theme.colors.textSecondary,
+    marginTop: theme.spacing.sm,
+    fontSize: 12,
+  },
+  row: {
+    flexDirection: "row",
+    gap: 8,
     marginBottom: theme.spacing.sm,
   },
   currencyGrid: {
@@ -190,28 +439,12 @@ const styles = StyleSheet.create({
   currencyTextActive: {
     color: theme.colors.textPrimary,
   },
-  primaryButton: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: theme.radius.md,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  primaryButtonText: {
-    color: theme.colors.textPrimary,
-    fontWeight: "700",
-  },
-  reminderToggleRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 10,
-    marginBottom: 12,
-  },
   toggleChip: {
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     backgroundColor: theme.colors.surfaceElevated,
   },
   toggleChipActive: {
@@ -222,11 +455,36 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontWeight: "600",
   },
+  input: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    color: theme.colors.textPrimary,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: theme.spacing.sm,
+  },
+  importInput: {
+    minHeight: 120,
+    textAlignVertical: "top",
+  },
+  primaryButton: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.radius.md,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
+  },
   secondaryButton: {
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
     paddingVertical: 10,
+    paddingHorizontal: 14,
     alignItems: "center",
   },
   secondaryButtonText: {
