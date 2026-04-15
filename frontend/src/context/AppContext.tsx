@@ -129,6 +129,7 @@ const defaultReminderLeadDays = 3;
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
+    shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: false,
     shouldShowBanner: true,
@@ -223,7 +224,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               subscriptionId: subscription.id,
             },
           },
-          trigger: reminderDate,
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: reminderDate,
+          },
         });
       }
     },
