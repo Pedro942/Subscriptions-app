@@ -14,9 +14,9 @@ function formatCurrency(amount: number, currency: string) {
 export default function AnalyticsScreen() {
   const { analytics, preferredCurrency, fxRates, budgetConfig } = useApp();
 
-  const categoryEntries = Object.entries(analytics?.category_breakdown ?? {}).sort(
-    (a, b) => b[1].monthly - a[1].monthly
-  );
+  const categoryEntries = Object.entries(
+    analytics?.category_breakdown ?? {},
+  ).sort((a, b) => b[1].monthly - a[1].monthly);
   const maxMonthly = categoryEntries[0]?.[1].monthly ?? 1;
   const monthlyTotal = analytics?.monthly_total ?? 0;
   const yearlyTotal = analytics?.yearly_total ?? 0;
@@ -32,18 +32,24 @@ export default function AnalyticsScreen() {
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
           <Text style={styles.label}>Monthly</Text>
-          <Text style={styles.value}>{formatCurrency(monthlyTotal, preferredCurrency)}</Text>
+          <Text style={styles.value}>
+            {formatCurrency(monthlyTotal, preferredCurrency)}
+          </Text>
         </View>
         <View style={styles.summaryCard}>
           <Text style={styles.label}>Yearly</Text>
-          <Text style={styles.value}>{formatCurrency(yearlyTotal, preferredCurrency)}</Text>
+          <Text style={styles.value}>
+            {formatCurrency(yearlyTotal, preferredCurrency)}
+          </Text>
         </View>
       </View>
 
       <View style={styles.kpiGrid}>
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>Average / subscription</Text>
-          <Text style={styles.kpiValue}>{formatCurrency(averageSpend, preferredCurrency)}</Text>
+          <Text style={styles.kpiValue}>
+            {formatCurrency(averageSpend, preferredCurrency)}
+          </Text>
         </View>
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>Top category</Text>
@@ -59,7 +65,10 @@ export default function AnalyticsScreen() {
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>Savings target (10%)</Text>
           <Text style={styles.kpiValue}>
-            {formatCurrency(analytics?.savings_target_10_percent ?? monthlyTotal * 0.1, preferredCurrency)}
+            {formatCurrency(
+              analytics?.savings_target_10_percent ?? monthlyTotal * 0.1,
+              preferredCurrency,
+            )}
           </Text>
         </View>
       </View>
@@ -67,7 +76,9 @@ export default function AnalyticsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Category breakdown</Text>
         {categoryEntries.length === 0 ? (
-          <Text style={styles.emptyText}>Add subscriptions to see your spend distribution.</Text>
+          <Text style={styles.emptyText}>
+            Add subscriptions to see your spend distribution.
+          </Text>
         ) : (
           categoryEntries.map(([category, totals]) => {
             const widthRatio = Math.max(0.08, totals.monthly / maxMonthly);
@@ -80,7 +91,12 @@ export default function AnalyticsScreen() {
                   </Text>
                 </View>
                 <View style={styles.barTrack}>
-                  <View style={[styles.barFill, { width: `${Math.round(widthRatio * 100)}%` }]} />
+                  <View
+                    style={[
+                      styles.barFill,
+                      { width: `${Math.round(widthRatio * 100)}%` },
+                    ]}
+                  />
                 </View>
               </View>
             );
@@ -102,7 +118,9 @@ export default function AnalyticsScreen() {
                   styles.barFill,
                   {
                     width: `${Math.min(100, Math.round(budgetStatus.monthly_usage_percent))}%`,
-                    backgroundColor: budgetStatus.over_budget ? theme.colors.danger : theme.colors.success,
+                    backgroundColor: budgetStatus.over_budget
+                      ? theme.colors.danger
+                      : theme.colors.success,
                   },
                 ]}
               />
@@ -115,7 +133,8 @@ export default function AnalyticsScreen() {
           </>
         ) : (
           <Text style={styles.emptyText}>
-            No budget configured yet. Set one in Settings to receive overspending alerts.
+            No budget configured yet. Set one in Settings to receive
+            overspending alerts.
           </Text>
         )}
       </View>
@@ -127,12 +146,16 @@ export default function AnalyticsScreen() {
             <View key={trial.id} style={styles.renewalRow}>
               <View>
                 <Text style={styles.renewalName}>{trial.name}</Text>
-                <Text style={styles.renewalDate}>Converts on {trial.trial_end_date}</Text>
+                <Text style={styles.renewalDate}>
+                  Converts on {trial.trial_end_date}
+                </Text>
               </View>
             </View>
           ))
         ) : (
-          <Text style={styles.emptyText}>No trial conversions in the next 14 days.</Text>
+          <Text style={styles.emptyText}>
+            No trial conversions in the next 14 days.
+          </Text>
         )}
       </View>
 
@@ -165,7 +188,9 @@ export default function AnalyticsScreen() {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>FX rates ({fxRates?.base ?? "EUR"})</Text>
+        <Text style={styles.cardTitle}>
+          FX rates ({fxRates?.base ?? "EUR"})
+        </Text>
         {fxRates ? (
           <>
             <View style={styles.rateGrid}>
@@ -177,7 +202,8 @@ export default function AnalyticsScreen() {
               ))}
             </View>
             <Text style={styles.fxMeta}>
-              Source: {fxRates.source} {fxRates.fetched_at ? `· Updated ${fxRates.fetched_at}` : ""}
+              Source: {fxRates.source}{" "}
+              {fxRates.fetched_at ? `· Updated ${fxRates.fetched_at}` : ""}
             </Text>
           </>
         ) : (
@@ -188,7 +214,8 @@ export default function AnalyticsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Projection</Text>
         <Text style={styles.projectionText}>
-          At this pace you are spending {formatCurrency(monthlyTotal, preferredCurrency)} per month and{" "}
+          At this pace you are spending{" "}
+          {formatCurrency(monthlyTotal, preferredCurrency)} per month and{" "}
           {formatCurrency(yearlyTotal, preferredCurrency)} per year.
         </Text>
       </View>
@@ -214,9 +241,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
+    borderColor: theme.colors.borderStrong,
+    borderRadius: theme.radius.xl,
     padding: theme.spacing.md,
+    ...theme.effects.softShadow,
   },
   label: {
     color: theme.colors.textSecondary,
@@ -231,9 +259,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
+    borderColor: theme.colors.borderStrong,
+    borderRadius: theme.radius.xl,
     padding: theme.spacing.md,
+    ...theme.effects.softShadow,
   },
   kpiGrid: {
     flexDirection: "row",
@@ -243,9 +272,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.lg,
+    borderColor: theme.colors.borderStrong,
+    borderRadius: theme.radius.xl,
     padding: theme.spacing.md,
+    ...theme.effects.softShadow,
   },
   kpiLabel: {
     color: theme.colors.textSecondary,
@@ -285,7 +315,7 @@ const styles = StyleSheet.create({
   barTrack: {
     height: 8,
     borderRadius: 999,
-    backgroundColor: theme.colors.surfaceElevated,
+    backgroundColor: theme.colors.surfaceSoft,
     overflow: "hidden",
   },
   barFill: {
@@ -361,7 +391,7 @@ const styles = StyleSheet.create({
   rateChip: {
     borderWidth: 1,
     borderColor: theme.colors.border,
-    borderRadius: 10,
+    borderRadius: theme.radius.md,
     backgroundColor: theme.colors.surfaceElevated,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -384,5 +414,12 @@ const styles = StyleSheet.create({
   projectionText: {
     color: theme.colors.textSecondary,
     lineHeight: 20,
+  },
+  legacyInsightRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.border,
   },
 });

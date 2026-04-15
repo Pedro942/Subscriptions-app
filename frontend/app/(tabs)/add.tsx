@@ -14,7 +14,12 @@ import { useRouter } from "expo-router";
 import { SvgUri } from "react-native-svg";
 
 import { theme } from "../../src/constants/theme";
-import { Platform, PlatformOffer, SharedMember, useApp } from "../../src/context/AppContext";
+import {
+  Platform,
+  PlatformOffer,
+  SharedMember,
+  useApp,
+} from "../../src/context/AppContext";
 
 const billingCycles = ["monthly", "yearly"] as const;
 
@@ -36,31 +41,48 @@ function parseSharedWith(input: string): SharedMember[] {
       const ratio = Number(ratioRaw);
       return { name: nameRaw, share_ratio: Number.isFinite(ratio) ? ratio : 0 };
     })
-    .filter((member) => member.name && member.share_ratio > 0 && member.share_ratio <= 1);
+    .filter(
+      (member) =>
+        member.name && member.share_ratio > 0 && member.share_ratio <= 1,
+    );
 }
 
 function BrandLogo({ uri, size = 18 }: { uri: string; size?: number }) {
   const isSvg = uri.toLowerCase().includes(".svg");
   if (isSvg) {
     return (
-      <View style={[styles.brandLogoWrap, { width: size, height: size, borderRadius: Math.max(4, size / 4) }]}>
+      <View
+        style={[
+          styles.brandLogoWrap,
+          { width: size, height: size, borderRadius: Math.max(4, size / 4) },
+        ]}
+      >
         <SvgUri uri={uri} width={size - 4} height={size - 4} />
       </View>
     );
   }
-  return <Image source={{ uri }} style={[styles.brandLogoImage, { width: size, height: size }]} />;
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.brandLogoImage, { width: size, height: size }]}
+    />
+  );
 }
 
 export default function AddScreen() {
   const router = useRouter();
-  const { addSubscription, platforms, preferredCurrency, duplicateCheck } = useApp();
-  const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(null);
+  const { addSubscription, platforms, preferredCurrency, duplicateCheck } =
+    useApp();
+  const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(
+    null,
+  );
   const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
   const [useManualPrice, setUseManualPrice] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [renewalDate, setRenewalDate] = useState("");
   const [amount, setAmount] = useState("");
-  const [billingCycle, setBillingCycle] = useState<(typeof billingCycles)[number]>("monthly");
+  const [billingCycle, setBillingCycle] =
+    useState<(typeof billingCycles)[number]>("monthly");
   const [customName, setCustomName] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const [trialEndDate, setTrialEndDate] = useState("");
@@ -69,12 +91,16 @@ export default function AddScreen() {
 
   const groups = useMemo(() => groupedByCategory(platforms), [platforms]);
   const selectedPlatform = useMemo(
-    () => platforms.find((platform) => platform.id === selectedPlatformId) ?? null,
-    [platforms, selectedPlatformId]
+    () =>
+      platforms.find((platform) => platform.id === selectedPlatformId) ?? null,
+    [platforms, selectedPlatformId],
   );
   const selectedOffer = useMemo(
-    () => (selectedPlatform?.offers ?? []).find((offer) => offer.id === selectedOfferId) ?? null,
-    [selectedPlatform, selectedOfferId]
+    () =>
+      (selectedPlatform?.offers ?? []).find(
+        (offer) => offer.id === selectedOfferId,
+      ) ?? null,
+    [selectedPlatform, selectedOfferId],
   );
   const showManualAmount = !selectedOffer || useManualPrice;
 
@@ -92,7 +118,10 @@ export default function AddScreen() {
       return;
     }
     if (isTrial && !trialEndDate) {
-      Alert.alert("Missing trial date", "Set a trial end date if this is a trial.");
+      Alert.alert(
+        "Missing trial date",
+        "Set a trial end date if this is a trial.",
+      );
       return;
     }
 
@@ -101,11 +130,20 @@ export default function AddScreen() {
       platform_offer_id: selectedOfferId ?? undefined,
       use_manual_price: useManualPrice,
       custom_name: selectedPlatformId ? undefined : customName || undefined,
-      custom_category: selectedPlatformId ? undefined : customCategory || "Other",
+      custom_category: selectedPlatformId
+        ? undefined
+        : customCategory || "Other",
       renewal_date: renewalDate,
-      amount: selectedOffer && !useManualPrice ? selectedOffer.price : Number(amount),
-      billing_cycle: selectedOffer && !useManualPrice ? selectedOffer.billing_cycle : billingCycle,
-      currency: selectedOffer && !useManualPrice ? selectedOffer.currency : preferredCurrency,
+      amount:
+        selectedOffer && !useManualPrice ? selectedOffer.price : Number(amount),
+      billing_cycle:
+        selectedOffer && !useManualPrice
+          ? selectedOffer.billing_cycle
+          : billingCycle,
+      currency:
+        selectedOffer && !useManualPrice
+          ? selectedOffer.currency
+          : preferredCurrency,
       trial_end_date: isTrial ? trialEndDate : null,
       is_trial: isTrial,
       shared_with: parseSharedWith(sharedWithInput),
@@ -119,10 +157,14 @@ export default function AddScreen() {
             "Potential duplicate",
             `${duplicate.message} Continue anyway?`,
             [
-              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              {
+                text: "Cancel",
+                style: "cancel",
+                onPress: () => resolve(false),
+              },
               { text: "Continue", onPress: () => resolve(true) },
             ],
-            { cancelable: false }
+            { cancelable: false },
           );
         });
         if (!continueAdd) {
@@ -134,7 +176,7 @@ export default function AddScreen() {
       if (result.requiresAuth) {
         Alert.alert(
           "Login required",
-          "After 10 subscriptions, please create an account in Settings to keep adding subscriptions."
+          "After 10 subscriptions, please create an account in Settings to keep adding subscriptions.",
         );
         router.push("/auth");
         return;
@@ -150,9 +192,15 @@ export default function AddScreen() {
       setIsTrial(false);
       setSharedWithInput("");
       setShowCustomModal(false);
-      Alert.alert("Saved", result.duplicateWarning ?? "Subscription added successfully.");
+      Alert.alert(
+        "Saved",
+        result.duplicateWarning ?? "Subscription added successfully.",
+      );
     } catch {
-      Alert.alert("Error", "Could not add subscription. Check server connectivity.");
+      Alert.alert(
+        "Error",
+        "Could not add subscription. Check server connectivity.",
+      );
     }
   }
 
@@ -183,15 +231,25 @@ export default function AddScreen() {
                 return (
                   <Pressable
                     key={platform.id}
-                    style={[styles.platformChip, selected && styles.platformChipActive]}
+                    style={[
+                      styles.platformChip,
+                      selected && styles.platformChipActive,
+                    ]}
                     onPress={() => {
                       setSelectedPlatformId(platform.id);
                       setSelectedOfferId(null);
                       setUseManualPrice(false);
                     }}
                   >
-                    {platform.logo_url ? <BrandLogo uri={platform.logo_url} size={18} /> : null}
-                    <Text style={[styles.platformChipText, selected && styles.platformChipTextActive]}>
+                    {platform.logo_url ? (
+                      <BrandLogo uri={platform.logo_url} size={18} />
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.platformChipText,
+                        selected && styles.platformChipTextActive,
+                      ]}
+                    >
                       {platform.name}
                     </Text>
                   </Pressable>
@@ -205,14 +263,19 @@ export default function AddScreen() {
       <View style={styles.formCard}>
         {selectedPlatform ? (
           <View style={styles.offerSection}>
-            <Text style={styles.offerSectionTitle}>{selectedPlatform.name} offers</Text>
+            <Text style={styles.offerSectionTitle}>
+              {selectedPlatform.name} offers
+            </Text>
             <View style={styles.offerList}>
               {(selectedPlatform.offers ?? []).map((offer: PlatformOffer) => {
                 const selected = selectedOfferId === offer.id;
                 return (
                   <Pressable
                     key={offer.id}
-                    style={[styles.offerChip, selected && styles.offerChipActive]}
+                    style={[
+                      styles.offerChip,
+                      selected && styles.offerChipActive,
+                    ]}
                     onPress={() => {
                       setSelectedOfferId(offer.id);
                       setUseManualPrice(false);
@@ -220,21 +283,28 @@ export default function AddScreen() {
                   >
                     <Text style={styles.offerName}>{offer.name}</Text>
                     <Text style={styles.offerPrice}>
-                      {formatCurrency(offer.price, offer.currency)} · {offer.billing_cycle}
+                      {formatCurrency(offer.price, offer.currency)} ·{" "}
+                      {offer.billing_cycle}
                     </Text>
                   </Pressable>
                 );
               })}
             </View>
             {(selectedPlatform.offers ?? []).length ? (
-              <Pressable style={styles.manualToggleButton} onPress={() => setUseManualPrice((value) => !value)}>
+              <Pressable
+                style={styles.manualToggleButton}
+                onPress={() => setUseManualPrice((value) => !value)}
+              >
                 <Text style={styles.manualToggleText}>
-                  {useManualPrice ? "Using manual price" : "Use manual price instead"}
+                  {useManualPrice
+                    ? "Using manual price"
+                    : "Use manual price instead"}
                 </Text>
               </Pressable>
             ) : (
               <Text style={styles.manualHintText}>
-                No predefined offers for this platform yet. Enter amount and billing cycle manually.
+                No predefined offers for this platform yet. Enter amount and
+                billing cycle manually.
               </Text>
             )}
           </View>
@@ -263,7 +333,10 @@ export default function AddScreen() {
                 <Pressable
                   key={cycle}
                   onPress={() => setBillingCycle(cycle)}
-                  style={[styles.cycleChip, billingCycle === cycle && styles.cycleChipActive]}
+                  style={[
+                    styles.cycleChip,
+                    billingCycle === cycle && styles.cycleChipActive,
+                  ]}
                 >
                   <Text style={styles.cycleText}>{cycle}</Text>
                 </Pressable>
@@ -281,7 +354,10 @@ export default function AddScreen() {
           </View>
         )}
         <View style={styles.toggleRow}>
-          <Pressable style={[styles.toggleChip, isTrial && styles.toggleChipActive]} onPress={() => setIsTrial(true)}>
+          <Pressable
+            style={[styles.toggleChip, isTrial && styles.toggleChipActive]}
+            onPress={() => setIsTrial(true)}
+          >
             <Text style={styles.toggleText}>Trial</Text>
           </Pressable>
           <Pressable
@@ -303,7 +379,9 @@ export default function AddScreen() {
             />
           </>
         ) : null}
-        <Text style={styles.inputLabel}>Shared with (name:ratio, comma-separated)</Text>
+        <Text style={styles.inputLabel}>
+          Shared with (name:ratio, comma-separated)
+        </Text>
         <TextInput
           style={styles.input}
           value={sharedWithInput}
@@ -311,7 +389,10 @@ export default function AddScreen() {
           placeholder="Alice:0.5, Bob:0.25"
           placeholderTextColor={theme.colors.textSecondary}
         />
-        <Pressable style={styles.submitButton} onPress={() => void submitSubscription()}>
+        <Pressable
+          style={styles.submitButton}
+          onPress={() => void submitSubscription()}
+        >
           <Text style={styles.submitButtonText}>Save subscription</Text>
         </Pressable>
       </View>
@@ -335,10 +416,16 @@ export default function AddScreen() {
               placeholderTextColor={theme.colors.textSecondary}
             />
             <View style={styles.modalActions}>
-              <Pressable style={styles.secondaryButton} onPress={() => setShowCustomModal(false)}>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => setShowCustomModal(false)}
+              >
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.submitButton} onPress={() => void submitSubscription()}>
+              <Pressable
+                style={styles.submitButton}
+                onPress={() => void submitSubscription()}
+              >
                 <Text style={styles.submitButtonText}>Use custom</Text>
               </Pressable>
             </View>

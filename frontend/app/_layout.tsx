@@ -13,7 +13,9 @@ function AppShell() {
     return (
       <View style={styles.lockContainer}>
         <Text style={styles.lockTitle}>App Locked</Text>
-        <Text style={styles.lockSubtitle}>Biometric lock is enabled. Unlock to continue.</Text>
+        <Text style={styles.lockSubtitle}>
+          Biometric lock is enabled. Unlock to continue.
+        </Text>
         <Pressable style={styles.unlockButton} onPress={() => void unlockApp()}>
           <Text style={styles.unlockButtonText}>Unlock</Text>
         </Pressable>
@@ -27,8 +29,9 @@ function AppShell() {
       {onboardingComplete ? null : <Redirect href="/onboarding" />}
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: theme.colors.surface },
+          headerStyle: { backgroundColor: theme.colors.background },
           headerTintColor: theme.colors.textPrimary,
+          headerShadowVisible: false,
           headerTitleStyle: { fontWeight: "700" },
           contentStyle: { backgroundColor: theme.colors.background },
         }}
@@ -60,11 +63,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
     justifyContent: "center",
-    padding: theme.spacing.lg,
+    padding: theme.spacing.xl,
   },
   lockTitle: {
     color: theme.colors.textPrimary,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: "700",
     marginBottom: 8,
   },
@@ -75,9 +78,10 @@ const styles = StyleSheet.create({
   unlockButton: {
     alignSelf: "flex-start",
     backgroundColor: theme.colors.accent,
-    borderRadius: theme.radius.md,
-    paddingVertical: 11,
-    paddingHorizontal: 18,
+    borderRadius: theme.radius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    ...theme.effects.softShadow,
   },
   unlockButtonText: {
     color: theme.colors.textPrimary,

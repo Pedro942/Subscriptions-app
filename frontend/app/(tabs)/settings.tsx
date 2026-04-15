@@ -1,7 +1,15 @@
 import * as Clipboard from "expo-clipboard";
 import * as LocalAuthentication from "expo-local-authentication";
 import { Link } from "expo-router";
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useMemo, useState } from "react";
 
 import { currencies, theme } from "../../src/constants/theme";
@@ -13,11 +21,16 @@ function parseCategoryLimits(input: string): Record<string, number> {
     .map((part) => part.trim())
     .filter(Boolean)
     .map((entry) => {
-      const [categoryRaw, limitRaw] = entry.split(":").map((value) => value.trim());
+      const [categoryRaw, limitRaw] = entry
+        .split(":")
+        .map((value) => value.trim());
       const limit = Number(limitRaw);
       return { category: categoryRaw, limit };
     })
-    .filter((entry) => entry.category && Number.isFinite(entry.limit) && entry.limit > 0);
+    .filter(
+      (entry) =>
+        entry.category && Number.isFinite(entry.limit) && entry.limit > 0,
+    );
   const result: Record<string, number> = {};
   for (const entry of entries) {
     result[entry.category] = entry.limit;
@@ -55,20 +68,20 @@ export default function SettingsScreen() {
   } = useApp();
 
   const [budgetLimitInput, setBudgetLimitInput] = useState(
-    budgetConfig?.monthly_limit ? String(budgetConfig.monthly_limit) : ""
+    budgetConfig?.monthly_limit ? String(budgetConfig.monthly_limit) : "",
   );
   const [categoryLimitsInput, setCategoryLimitsInput] = useState(
     budgetConfig
       ? Object.entries(budgetConfig.category_limits)
           .map(([category, limit]) => `${category}:${limit}`)
           .join(", ")
-      : ""
+      : "",
   );
   const [importJsonInput, setImportJsonInput] = useState("");
 
   const biometricLabel = useMemo(
     () => (isBiometricLockEnabled ? "Biometric lock ON" : "Biometric lock OFF"),
-    [isBiometricLockEnabled]
+    [isBiometricLockEnabled],
   );
 
   async function handleCurrencyChange(currency: string) {
@@ -161,7 +174,9 @@ export default function SettingsScreen() {
 
   async function handleImportJson() {
     try {
-      const parsed = JSON.parse(importJsonInput) as { subscriptions?: Record<string, unknown>[] };
+      const parsed = JSON.parse(importJsonInput) as {
+        subscriptions?: Record<string, unknown>[];
+      };
       const subscriptions = parsed.subscriptions ?? [];
       if (!Array.isArray(subscriptions)) {
         Alert.alert("Invalid payload", "Expected a `subscriptions` array.");
@@ -179,7 +194,10 @@ export default function SettingsScreen() {
     const hasHardware = await LocalAuthentication.hasHardwareAsync();
     const isEnrolled = await LocalAuthentication.isEnrolledAsync();
     if (!hasHardware || !isEnrolled) {
-      Alert.alert("Unavailable", "Biometric hardware is not available or no biometric is enrolled.");
+      Alert.alert(
+        "Unavailable",
+        "Biometric hardware is not available or no biometric is enrolled.",
+      );
       return;
     }
     const target = !isBiometricLockEnabled;
@@ -193,7 +211,9 @@ export default function SettingsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Currency</Text>
-        <Text style={styles.cardSubtitle}>Default is EUR, but you can switch anytime.</Text>
+        <Text style={styles.cardSubtitle}>
+          Default is EUR, but you can switch anytime.
+        </Text>
         <View style={styles.currencyGrid}>
           {currencies.map((currency) => {
             const active = preferredCurrency === currency;
@@ -201,16 +221,27 @@ export default function SettingsScreen() {
               <Pressable
                 key={currency}
                 onPress={() => void handleCurrencyChange(currency)}
-                style={[styles.currencyChip, active && styles.currencyChipActive]}
+                style={[
+                  styles.currencyChip,
+                  active && styles.currencyChipActive,
+                ]}
               >
-                <Text style={[styles.currencyText, active && styles.currencyTextActive]}>{currency}</Text>
+                <Text
+                  style={[
+                    styles.currencyText,
+                    active && styles.currencyTextActive,
+                  ]}
+                >
+                  {currency}
+                </Text>
               </Pressable>
             );
           })}
         </View>
         {fxRates ? (
           <Text style={styles.metaText}>
-            FX source: {fxRates.source} {fxRates.fetched_at ? `· Updated ${fxRates.fetched_at}` : ""}
+            FX source: {fxRates.source}{" "}
+            {fxRates.fetched_at ? `· Updated ${fxRates.fetched_at}` : ""}
           </Text>
         ) : null}
       </View>
@@ -218,28 +249,42 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Renewal reminders</Text>
         <Text style={styles.cardSubtitle}>
-          Push notifications before renewal dates are enabled by requesting permissions.
+          Push notifications before renewal dates are enabled by requesting
+          permissions.
         </Text>
-        <Pressable style={styles.primaryButton} onPress={() => void handleNotifications()}>
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => void handleNotifications()}
+        >
           <Text style={styles.primaryButtonText}>
-            {notificationStatus === "granted" ? "Notifications enabled" : "Enable notifications"}
+            {notificationStatus === "granted"
+              ? "Notifications enabled"
+              : "Enable notifications"}
           </Text>
         </Pressable>
         <View style={styles.row}>
           <Pressable
-            style={[styles.toggleChip, remindersEnabled && styles.toggleChipActive]}
+            style={[
+              styles.toggleChip,
+              remindersEnabled && styles.toggleChipActive,
+            ]}
             onPress={() => void handleToggleReminders(true)}
           >
             <Text style={styles.toggleChipText}>On</Text>
           </Pressable>
           <Pressable
-            style={[styles.toggleChip, !remindersEnabled && styles.toggleChipActive]}
+            style={[
+              styles.toggleChip,
+              !remindersEnabled && styles.toggleChipActive,
+            ]}
             onPress={() => void handleToggleReminders(false)}
           >
             <Text style={styles.toggleChipText}>Off</Text>
           </Pressable>
         </View>
-        <Text style={styles.cardSubtitle}>Notify me this many days before renewal:</Text>
+        <Text style={styles.cardSubtitle}>
+          Notify me this many days before renewal:
+        </Text>
         <View style={styles.currencyGrid}>
           {[1, 3, 7].map((days) => {
             const active = reminderLeadDays === days;
@@ -247,9 +292,19 @@ export default function SettingsScreen() {
               <Pressable
                 key={days}
                 onPress={() => void handleLeadDays(days)}
-                style={[styles.currencyChip, active && styles.currencyChipActive]}
+                style={[
+                  styles.currencyChip,
+                  active && styles.currencyChipActive,
+                ]}
               >
-                <Text style={[styles.currencyText, active && styles.currencyTextActive]}>{days}d</Text>
+                <Text
+                  style={[
+                    styles.currencyText,
+                    active && styles.currencyTextActive,
+                  ]}
+                >
+                  {days}d
+                </Text>
               </Pressable>
             );
           })}
@@ -258,16 +313,24 @@ export default function SettingsScreen() {
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Quiet hours</Text>
-        <Text style={styles.cardSubtitle}>Suppress reminders during selected hours.</Text>
+        <Text style={styles.cardSubtitle}>
+          Suppress reminders during selected hours.
+        </Text>
         <View style={styles.row}>
           <Pressable
-            style={[styles.toggleChip, quietHoursEnabled && styles.toggleChipActive]}
+            style={[
+              styles.toggleChip,
+              quietHoursEnabled && styles.toggleChipActive,
+            ]}
             onPress={() => void handleQuietHours(true)}
           >
             <Text style={styles.toggleChipText}>Enabled</Text>
           </Pressable>
           <Pressable
-            style={[styles.toggleChip, !quietHoursEnabled && styles.toggleChipActive]}
+            style={[
+              styles.toggleChip,
+              !quietHoursEnabled && styles.toggleChipActive,
+            ]}
             onPress={() => void handleQuietHours(false)}
           >
             <Text style={styles.toggleChipText}>Disabled</Text>
@@ -279,14 +342,25 @@ export default function SettingsScreen() {
             { label: "23 → 7", start: 23, end: 7 },
             { label: "0 → 6", start: 0, end: 6 },
           ].map((slot) => {
-            const active = quietHoursStart === slot.start && quietHoursEnd === slot.end;
+            const active =
+              quietHoursStart === slot.start && quietHoursEnd === slot.end;
             return (
               <Pressable
                 key={slot.label}
-                style={[styles.currencyChip, active && styles.currencyChipActive]}
+                style={[
+                  styles.currencyChip,
+                  active && styles.currencyChipActive,
+                ]}
                 onPress={() => void handleQuietWindow(slot.start, slot.end)}
               >
-                <Text style={[styles.currencyText, active && styles.currencyTextActive]}>{slot.label}</Text>
+                <Text
+                  style={[
+                    styles.currencyText,
+                    active && styles.currencyTextActive,
+                  ]}
+                >
+                  {slot.label}
+                </Text>
               </Pressable>
             );
           })}
@@ -296,7 +370,8 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Budgets</Text>
         <Text style={styles.cardSubtitle}>
-          Set monthly and category limits using format: Video Streaming:60, Music:20
+          Set monthly and category limits using format: Video Streaming:60,
+          Music:20
         </Text>
         <TextInput
           style={styles.input}
@@ -313,7 +388,10 @@ export default function SettingsScreen() {
           placeholder="Category limits"
           placeholderTextColor={theme.colors.textSecondary}
         />
-        <Pressable style={styles.primaryButton} onPress={() => void handleSaveBudget()}>
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => void handleSaveBudget()}
+        >
           <Text style={styles.primaryButtonText}>Save budget</Text>
         </Pressable>
       </View>
@@ -321,13 +399,20 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Data export/import</Text>
         <Text style={styles.cardSubtitle}>
-          Export to clipboard and import from JSON payload. Keeps your data portable.
+          Export to clipboard and import from JSON payload. Keeps your data
+          portable.
         </Text>
         <View style={styles.row}>
-          <Pressable style={styles.secondaryButton} onPress={() => void handleExportJson()}>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => void handleExportJson()}
+          >
             <Text style={styles.secondaryButtonText}>Export JSON</Text>
           </Pressable>
-          <Pressable style={styles.secondaryButton} onPress={() => void handleExportCsv()}>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => void handleExportCsv()}
+          >
             <Text style={styles.secondaryButtonText}>Export CSV</Text>
           </Pressable>
         </View>
@@ -339,15 +424,23 @@ export default function SettingsScreen() {
           placeholder='Paste JSON export payload here {"subscriptions":[...]}'
           placeholderTextColor={theme.colors.textSecondary}
         />
-        <Pressable style={styles.primaryButton} onPress={() => void handleImportJson()}>
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => void handleImportJson()}
+        >
           <Text style={styles.primaryButtonText}>Import JSON</Text>
         </Pressable>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Security</Text>
-        <Text style={styles.cardSubtitle}>Enable app lock and unlock using local biometrics.</Text>
-        <Pressable style={styles.primaryButton} onPress={() => void handleBiometricToggle()}>
+        <Text style={styles.cardSubtitle}>
+          Enable app lock and unlock using local biometrics.
+        </Text>
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => void handleBiometricToggle()}
+        >
           <Text style={styles.primaryButtonText}>{biometricLabel}</Text>
         </Pressable>
       </View>
@@ -357,14 +450,18 @@ export default function SettingsScreen() {
         {token ? (
           <>
             <Text style={styles.cardSubtitle}>Logged in as {userEmail}</Text>
-            <Pressable style={styles.secondaryButton} onPress={() => void logout()}>
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => void logout()}
+            >
               <Text style={styles.secondaryButtonText}>Logout</Text>
             </Pressable>
           </>
         ) : (
           <>
             <Text style={styles.cardSubtitle}>
-              Create an account to unlock more than 10 subscriptions and keep your data synced.
+              Create an account to unlock more than 10 subscriptions and keep
+              your data synced.
             </Text>
             <Link href="/auth" asChild>
               <Pressable style={styles.primaryButton}>
@@ -394,6 +491,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.md,
+    ...theme.effects.softShadow,
   },
   cardTitle: {
     color: theme.colors.textPrimary,
@@ -404,6 +502,7 @@ const styles = StyleSheet.create({
   cardSubtitle: {
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.sm,
+    lineHeight: 19,
   },
   metaText: {
     color: theme.colors.textSecondary,
@@ -430,7 +529,7 @@ const styles = StyleSheet.create({
   },
   currencyChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   currencyText: {
     color: theme.colors.textSecondary,
@@ -449,7 +548,7 @@ const styles = StyleSheet.create({
   },
   toggleChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   toggleChipText: {
     color: theme.colors.textPrimary,
@@ -457,7 +556,7 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.borderStrong,
     borderRadius: theme.radius.md,
     backgroundColor: theme.colors.surfaceElevated,
     color: theme.colors.textPrimary,

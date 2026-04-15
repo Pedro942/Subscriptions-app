@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 
 import { theme } from "../src/constants/theme";
@@ -30,7 +37,10 @@ export default function AuthScreen() {
       }
       router.back();
     } catch {
-      Alert.alert("Authentication failed", "Please verify credentials and try again.");
+      Alert.alert(
+        "Authentication failed",
+        "Please verify credentials and try again.",
+      );
     } finally {
       setPending(false);
     }
@@ -38,47 +48,64 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{mode === "login" ? "Welcome back" : "Create account"}</Text>
-      <Text style={styles.subtitle}>
-        Accounts are required after 10 subscriptions to unlock unlimited tracking.
-      </Text>
+      <View style={styles.panel}>
+        <Text style={styles.title}>
+          {mode === "login" ? "Welcome back" : "Create account"}
+        </Text>
+        <Text style={styles.subtitle}>
+          Accounts are required after 10 subscriptions to unlock unlimited
+          tracking.
+        </Text>
 
-      <View style={styles.modeRow}>
+        <View style={styles.modeRow}>
+          <Pressable
+            style={[styles.modeChip, mode === "login" && styles.modeChipActive]}
+            onPress={() => setMode("login")}
+          >
+            <Text style={styles.modeText}>Login</Text>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.modeChip,
+              mode === "register" && styles.modeChipActive,
+            ]}
+            onPress={() => setMode("register")}
+          >
+            <Text style={styles.modeText}>Register</Text>
+          </Pressable>
+        </View>
+
+        <TextInput
+          style={styles.input}
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholder="you@example.com"
+          placeholderTextColor={theme.colors.textSecondary}
+        />
+        <TextInput
+          style={styles.input}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          placeholder="Password (min 8 chars)"
+          placeholderTextColor={theme.colors.textSecondary}
+        />
+
         <Pressable
-          style={[styles.modeChip, mode === "login" && styles.modeChipActive]}
-          onPress={() => setMode("login")}
+          style={[styles.submitButton, pending && styles.submitButtonDisabled]}
+          onPress={submit}
         >
-          <Text style={styles.modeText}>Login</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.modeChip, mode === "register" && styles.modeChipActive]}
-          onPress={() => setMode("register")}
-        >
-          <Text style={styles.modeText}>Register</Text>
+          <Text style={styles.submitText}>
+            {pending
+              ? "Please wait..."
+              : mode === "login"
+                ? "Login"
+                : "Register"}
+          </Text>
         </Pressable>
       </View>
-
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        placeholder="you@example.com"
-        placeholderTextColor={theme.colors.textSecondary}
-      />
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="Password (min 8 chars)"
-        placeholderTextColor={theme.colors.textSecondary}
-      />
-
-      <Pressable style={[styles.submitButton, pending && styles.submitButtonDisabled]} onPress={submit}>
-        <Text style={styles.submitText}>{pending ? "Please wait..." : mode === "login" ? "Login" : "Register"}</Text>
-      </Pressable>
     </View>
   );
 }
@@ -87,8 +114,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.xl,
     justifyContent: "center",
+  },
+  panel: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.xxl,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.lg,
+    ...theme.effects.cardShadow,
   },
   title: {
     color: theme.colors.textPrimary,
@@ -115,7 +150,7 @@ const styles = StyleSheet.create({
   },
   modeChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   modeText: {
     color: theme.colors.textPrimary,
@@ -125,7 +160,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceSoft,
     color: theme.colors.textPrimary,
     paddingHorizontal: 12,
     paddingVertical: 11,
