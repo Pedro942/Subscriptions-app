@@ -14,6 +14,17 @@ export type Platform = {
   slug: string;
   name: string;
   category: string;
+  logo_url?: string | null;
+  offers?: PlatformOffer[];
+};
+
+export type PlatformOffer = {
+  id: string;
+  name: string;
+  price: number;
+  billing_cycle: BillingCycle;
+  currency: string;
+  logo_url?: string | null;
 };
 
 export type SharedMember = {
@@ -38,6 +49,9 @@ export type Subscription = {
   billing_cycle: BillingCycle;
   currency: string;
   platform_slug?: string | null;
+  platform_logo_url?: string | null;
+  platform_offer_id?: string | null;
+  platform_offer_name?: string | null;
   trial_end_date?: string | null;
   is_trial?: boolean;
   shared_with?: SharedMember[];
@@ -112,6 +126,8 @@ type BudgetConfig = {
 
 type AddSubscriptionInput = {
   platform_id?: string;
+  platform_offer_id?: string;
+  use_manual_price?: boolean;
   custom_name?: string;
   custom_category?: string;
   renewal_date: string;
@@ -128,6 +144,8 @@ type UpdateSubscriptionInput = {
   amount?: number;
   billing_cycle?: BillingCycle;
   currency?: string;
+  platform_offer_id?: string;
+  use_manual_price?: boolean;
   trial_end_date?: string | null;
   is_trial?: boolean;
   shared_with?: SharedMember[];

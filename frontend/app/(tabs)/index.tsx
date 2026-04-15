@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -246,14 +247,19 @@ export default function HomeScreen() {
         renderItem={({ item }) => (
           <View style={styles.itemCard}>
             <View style={styles.itemLeading}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.iconLabel}>{item.name.slice(0, 1).toUpperCase()}</Text>
-              </View>
+              {item.platform_logo_url ? (
+                <Image source={{ uri: item.platform_logo_url }} style={styles.logoImage} />
+              ) : (
+                <View style={styles.iconCircle}>
+                  <Text style={styles.iconLabel}>{item.name.slice(0, 1).toUpperCase()}</Text>
+                </View>
+              )}
               <View style={styles.itemTextBlock}>
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemMeta}>
                   {item.category} · Renews {item.renewal_date}
                 </Text>
+                {item.platform_offer_name ? <Text style={styles.itemOfferMeta}>Offer: {item.platform_offer_name}</Text> : null}
                 {item.is_trial && item.trial_end_date ? (
                   <Text style={styles.itemTrialMeta}>Trial until {item.trial_end_date}</Text>
                 ) : null}
@@ -580,6 +586,12 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontWeight: "700",
   },
+  logoImage: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: "#fff",
+  },
   itemName: {
     color: theme.colors.textPrimary,
     fontSize: 15,
@@ -588,6 +600,11 @@ const styles = StyleSheet.create({
   itemMeta: {
     color: theme.colors.textSecondary,
     marginTop: 3,
+    fontSize: 12,
+  },
+  itemOfferMeta: {
+    color: theme.colors.textSecondary,
+    marginTop: 2,
     fontSize: 12,
   },
   itemTrialMeta: {

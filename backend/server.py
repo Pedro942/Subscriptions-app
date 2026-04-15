@@ -68,11 +68,22 @@ class TokenResponse(BaseModel):
     email: EmailStr
 
 
+class PlatformOfferOut(BaseModel):
+    id: str
+    name: str
+    price: float
+    billing_cycle: Literal["monthly", "yearly"]
+    currency: str
+    logo_url: str | None = None
+
+
 class PlatformOut(BaseModel):
     id: str
     slug: str
     name: str
     category: str
+    logo_url: str | None = None
+    offers: list[PlatformOfferOut] = Field(default_factory=list)
 
 
 class SharedMember(BaseModel):
@@ -82,6 +93,8 @@ class SharedMember(BaseModel):
 
 class SubscriptionCreate(BaseModel):
     platform_id: str | None = None
+    platform_offer_id: str | None = None
+    use_manual_price: bool = False
     custom_name: str | None = None
     custom_category: str | None = None
     renewal_date: date
@@ -98,6 +111,8 @@ class SubscriptionUpdate(BaseModel):
     amount: float | None = Field(default=None, gt=0)
     billing_cycle: Literal["monthly", "yearly"] | None = None
     currency: str | None = None
+    platform_offer_id: str | None = None
+    use_manual_price: bool | None = None
     trial_end_date: date | None = None
     is_trial: bool | None = None
     shared_with: list[SharedMember] | None = None
@@ -127,6 +142,9 @@ class SubscriptionOut(BaseModel):
     billing_cycle: Literal["monthly", "yearly"]
     currency: str
     platform_slug: str | None = None
+    platform_logo_url: str | None = None
+    platform_offer_id: str | None = None
+    platform_offer_name: str | None = None
     trial_end_date: date | None = None
     is_trial: bool = False
     shared_with: list[SharedMemberOut] = Field(default_factory=list)
@@ -195,7 +213,7 @@ class FxRatesResponse(BaseModel):
     source: str
 
 
-POPULAR_PLATFORMS = [
+BASE_POPULAR_PLATFORMS = [
     {"slug": "netflix", "name": "Netflix", "category": "Video Streaming"},
     {"slug": "amazon-prime-video", "name": "Amazon Prime Video", "category": "Video Streaming"},
     {"slug": "disney-plus", "name": "Disney+", "category": "Video Streaming"},
@@ -233,6 +251,76 @@ POPULAR_PLATFORMS = [
     {"slug": "nike-run-club", "name": "Nike Run Club", "category": "Fitness"},
     {"slug": "amazon-prime", "name": "Amazon Prime", "category": "Shopping"},
     {"slug": "walmart-plus", "name": "Walmart+", "category": "Shopping"},
+]
+
+PLATFORM_LOGOS = {
+    "netflix": "https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg",
+    "amazon-prime-video": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Prime_Video.png",
+    "disney-plus": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg",
+    "hbo-max": "https://upload.wikimedia.org/wikipedia/commons/1/17/HBO_Max_Logo.svg",
+    "youtube-premium": "https://upload.wikimedia.org/wikipedia/commons/0/09/YouTube_full-color_icon_%282017%29.svg",
+    "spotify": "https://upload.wikimedia.org/wikipedia/commons/8/84/Spotify_icon.svg",
+    "apple-music": "https://upload.wikimedia.org/wikipedia/commons/5/5f/Apple_Music_icon.svg",
+    "google-one": "https://upload.wikimedia.org/wikipedia/commons/5/5b/Google_One_logo.svg",
+    "microsoft-365": "https://upload.wikimedia.org/wikipedia/commons/0/0e/Microsoft_365_%282022%29.svg",
+    "amazon-prime": "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png",
+}
+
+PLATFORM_OFFERS = {
+    "netflix": [
+        {"id": "standard-with-ads", "name": "Standard with Ads", "price": 5.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "standard", "name": "Standard", "price": 13.49, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "premium", "name": "Premium", "price": 19.99, "billing_cycle": "monthly", "currency": "EUR"},
+    ],
+    "amazon-prime-video": [
+        {"id": "monthly", "name": "Prime Video Monthly", "price": 8.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "yearly", "name": "Prime Video Yearly", "price": 89.90, "billing_cycle": "yearly", "currency": "EUR"},
+    ],
+    "disney-plus": [
+        {"id": "standard", "name": "Standard", "price": 8.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "premium", "name": "Premium", "price": 11.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "standard-yearly", "name": "Standard Yearly", "price": 89.90, "billing_cycle": "yearly", "currency": "EUR"},
+    ],
+    "youtube-premium": [
+        {"id": "individual", "name": "Individual", "price": 11.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "family", "name": "Family", "price": 17.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "student", "name": "Student", "price": 6.99, "billing_cycle": "monthly", "currency": "EUR"},
+    ],
+    "spotify": [
+        {"id": "individual", "name": "Premium Individual", "price": 10.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "duo", "name": "Premium Duo", "price": 14.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "family", "name": "Premium Family", "price": 17.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "student", "name": "Premium Student", "price": 5.99, "billing_cycle": "monthly", "currency": "EUR"},
+    ],
+    "google-one": [
+        {"id": "100gb", "name": "100 GB", "price": 1.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "200gb", "name": "200 GB", "price": 2.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "2tb", "name": "2 TB", "price": 9.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "2tb-ai", "name": "2 TB AI Premium", "price": 21.99, "billing_cycle": "monthly", "currency": "EUR"},
+    ],
+    "apple-music": [
+        {"id": "individual", "name": "Individual", "price": 10.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "family", "name": "Family", "price": 16.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "student", "name": "Student", "price": 5.99, "billing_cycle": "monthly", "currency": "EUR"},
+    ],
+    "microsoft-365": [
+        {"id": "personal", "name": "Personal", "price": 9.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "family", "name": "Family", "price": 12.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "personal-yearly", "name": "Personal Yearly", "price": 99.00, "billing_cycle": "yearly", "currency": "EUR"},
+    ],
+    "amazon-prime": [
+        {"id": "monthly", "name": "Prime Monthly", "price": 4.99, "billing_cycle": "monthly", "currency": "EUR"},
+        {"id": "yearly", "name": "Prime Yearly", "price": 49.90, "billing_cycle": "yearly", "currency": "EUR"},
+    ],
+}
+
+POPULAR_PLATFORMS = [
+    {
+        **platform,
+        "logo_url": PLATFORM_LOGOS.get(platform["slug"]),
+        "offers": PLATFORM_OFFERS.get(platform["slug"], []),
+    }
+    for platform in BASE_POPULAR_PLATFORMS
 ]
 
 
@@ -305,6 +393,16 @@ def monthly_cost(amount: float, billing_cycle: str) -> float:
     return amount if billing_cycle == "monthly" else amount / 12
 
 
+def get_offer_for_platform(platform_doc: dict | None, offer_id: str | None) -> dict | None:
+    if not platform_doc or not offer_id:
+        return None
+    offers = platform_doc.get("offers") or []
+    for offer in offers:
+        if str(offer.get("id")) == offer_id:
+            return offer
+    return None
+
+
 def normalize_shared_members(shared_with: list[dict] | None) -> list[dict]:
     members = shared_with or []
     if not members:
@@ -341,6 +439,9 @@ def serialize_subscription(document: dict, duplicates: dict[tuple[str, str], int
         billing_cycle=document["billing_cycle"],
         currency=document["currency"],
         platform_slug=document.get("platform_slug"),
+        platform_logo_url=document.get("platform_logo_url"),
+        platform_offer_id=document.get("platform_offer_id"),
+        platform_offer_name=document.get("platform_offer_name"),
         trial_end_date=document.get("trial_end_date"),
         is_trial=bool(document.get("is_trial", False)),
         shared_with=[SharedMemberOut(**member) for member in shared_members],
@@ -409,10 +510,9 @@ async def migrate_device_subscriptions(db: AsyncIOMotorDatabase, device_id: str,
 
 
 async def seed_platform_catalog(db: AsyncIOMotorDatabase) -> None:
-    existing_count = await db.platforms.count_documents({})
-    if existing_count:
-        return
-    await db.platforms.insert_many(POPULAR_PLATFORMS)
+    # Keep the platform catalog in sync with built-in offer metadata.
+    for platform in POPULAR_PLATFORMS:
+        await db.platforms.update_one({"slug": platform["slug"]}, {"$set": platform}, upsert=True)
 
 
 def ensure_firebase_initialized() -> None:
@@ -717,6 +817,18 @@ async def list_platforms(
                 slug=platform["slug"],
                 name=platform["name"],
                 category=platform["category"],
+                logo_url=platform.get("logo_url"),
+                offers=[
+                    PlatformOfferOut(
+                        id=str(offer["id"]),
+                        name=str(offer["name"]),
+                        price=float(offer["price"]),
+                        billing_cycle=offer["billing_cycle"],
+                        currency=normalize_currency(offer["currency"]),
+                        logo_url=offer.get("logo_url") or platform.get("logo_url"),
+                    )
+                    for offer in (platform.get("offers") or [])
+                ],
             )
         )
     return platforms
@@ -792,9 +904,21 @@ async def create_subscription(
                 detail="Authentication required after 10 subscriptions.",
             )
 
+    if payload.platform_offer_id and not payload.platform_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="platform_offer_id requires a platform_id.",
+        )
+
     name = payload.custom_name
     category = payload.custom_category or "Other"
     platform_slug = None
+    platform_logo_url = None
+    platform_offer_id = None
+    platform_offer_name = None
+    amount = payload.amount
+    billing_cycle = payload.billing_cycle
+    currency = normalize_currency(payload.currency)
 
     if payload.platform_id:
         platform_doc = await db.platforms.find_one({"_id": parse_object_id(payload.platform_id)})
@@ -803,6 +927,27 @@ async def create_subscription(
         name = platform_doc["name"]
         category = platform_doc["category"]
         platform_slug = platform_doc["slug"]
+        platform_logo_url = platform_doc.get("logo_url")
+
+        if payload.platform_offer_id:
+            offer = get_offer_for_platform(platform_doc, payload.platform_offer_id)
+            if not offer:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform offer not found.")
+            platform_offer_id = str(offer["id"])
+            platform_offer_name = str(offer["name"])
+            if payload.use_manual_price:
+                billing_cycle = payload.billing_cycle
+                currency = normalize_currency(payload.currency)
+                amount = payload.amount
+            else:
+                amount = float(offer["price"])
+                billing_cycle = offer["billing_cycle"]
+                currency = normalize_currency(offer["currency"])
+
+    if not payload.platform_offer_id:
+        billing_cycle = payload.billing_cycle
+        currency = normalize_currency(payload.currency)
+        amount = payload.amount
 
     if not name:
         raise HTTPException(
@@ -818,12 +963,16 @@ async def create_subscription(
         "name": name,
         "category": category,
         "renewal_date": payload.renewal_date,
-        "amount": payload.amount,
-        "billing_cycle": payload.billing_cycle,
-        "currency": normalize_currency(payload.currency),
+        "amount": amount,
+        "billing_cycle": billing_cycle,
+        "currency": currency,
         "trial_end_date": payload.trial_end_date,
         "is_trial": payload.is_trial,
         "shared_with": shared_members,
+        "platform_logo_url": platform_logo_url,
+        "platform_offer_id": platform_offer_id,
+        "platform_offer_name": platform_offer_name,
+        "use_manual_price": payload.use_manual_price,
         "price_history": [],
         "created_at": datetime.now(UTC),
         "updated_at": datetime.now(UTC),
@@ -851,6 +1000,46 @@ async def update_subscription(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found.")
 
     updates = payload.model_dump(exclude_unset=True)
+    if "platform_offer_id" in updates and updates["platform_offer_id"]:
+        if not existing.get("platform_slug"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="platform_offer_id can be used only for catalog subscriptions.",
+            )
+        platform_doc = await db.platforms.find_one({"slug": existing["platform_slug"]})
+        if not platform_doc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform not found.")
+        offer = next(
+            (
+                entry
+                for entry in (platform_doc.get("offers") or [])
+                if str(entry.get("id")) == str(updates["platform_offer_id"])
+            ),
+            None,
+        )
+        if not offer:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Platform offer not found.")
+        if not bool(updates.get("use_manual_price")):
+            updates["amount"] = float(offer["price"])
+            updates["billing_cycle"] = offer["billing_cycle"]
+            updates["currency"] = normalize_currency(offer["currency"])
+        updates["platform_offer_name"] = str(offer["name"])
+    if "use_manual_price" in updates and updates["use_manual_price"] is False and existing.get("platform_offer_id"):
+        platform_doc = await db.platforms.find_one({"slug": existing.get("platform_slug")})
+        if platform_doc:
+            offer = next(
+                (
+                    entry
+                    for entry in (platform_doc.get("offers") or [])
+                    if str(entry.get("id")) == str(existing.get("platform_offer_id"))
+                ),
+                None,
+            )
+            if offer:
+                updates["amount"] = float(offer["price"])
+                updates["billing_cycle"] = offer["billing_cycle"]
+                updates["currency"] = normalize_currency(offer["currency"])
+                updates["platform_offer_name"] = str(offer["name"])
     if "currency" in updates:
         updates["currency"] = normalize_currency(updates["currency"])
     if "shared_with" in updates and updates["shared_with"] is not None:
@@ -1004,6 +1193,11 @@ async def export_json(
                 "amount": float(item["amount"]),
                 "billing_cycle": item["billing_cycle"],
                 "currency": item["currency"],
+                "platform_slug": item.get("platform_slug"),
+                "platform_offer_id": item.get("platform_offer_id"),
+                "platform_offer_name": item.get("platform_offer_name"),
+                "platform_logo_url": item.get("platform_logo_url"),
+                "use_manual_price": bool(item.get("use_manual_price", False)),
                 "is_trial": bool(item.get("is_trial", False)),
                 "trial_end_date": item["trial_end_date"].isoformat() if item.get("trial_end_date") else None,
                 "shared_with": item.get("shared_with", []),
@@ -1024,6 +1218,11 @@ async def export_csv(
         [
             "name",
             "category",
+            "platform_slug",
+            "platform_offer_id",
+            "platform_offer_name",
+            "platform_logo_url",
+            "use_manual_price",
             "renewal_date",
             "amount",
             "billing_cycle",
@@ -1038,6 +1237,11 @@ async def export_csv(
             [
                 item["name"],
                 item.get("category", "Other"),
+                item.get("platform_slug") or "",
+                item.get("platform_offer_id") or "",
+                item.get("platform_offer_name") or "",
+                item.get("platform_logo_url") or "",
+                "true" if item.get("use_manual_price") else "false",
                 item["renewal_date"].isoformat(),
                 item["amount"],
                 item["billing_cycle"],
@@ -1076,13 +1280,17 @@ async def import_json(
             {
                 "owner_type": owner.owner_type,
                 "owner_id": owner.owner_id,
-                "platform_slug": None,
+                "platform_slug": item.get("platform_slug"),
                 "name": str(item.get("name", "Imported Subscription")).strip() or "Imported Subscription",
                 "category": str(item.get("category", "Other")),
                 "renewal_date": renewal,
                 "amount": float(item.get("amount", 0) or 0),
                 "billing_cycle": item.get("billing_cycle", "monthly"),
                 "currency": normalize_currency(item.get("currency")),
+                "platform_offer_id": item.get("platform_offer_id"),
+                "platform_offer_name": item.get("platform_offer_name"),
+                "platform_logo_url": item.get("platform_logo_url"),
+                "use_manual_price": bool(item.get("use_manual_price", False)),
                 "trial_end_date": trial_end,
                 "is_trial": bool(item.get("is_trial", False)),
                 "shared_with": shared_members,
