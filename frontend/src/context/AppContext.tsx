@@ -37,6 +37,10 @@ type Analytics = {
   }>;
   currency: string;
   subscriptions_count: number;
+  average_monthly_per_subscription: number;
+  top_category: { name: string; monthly: number } | null;
+  upcoming_renewals_count: number;
+  next_renewal_date: string | null;
 };
 
 type AddSubscriptionInput = {
@@ -47,6 +51,13 @@ type AddSubscriptionInput = {
   amount: number;
   billing_cycle: BillingCycle;
   currency: string;
+};
+
+type UpdateSubscriptionInput = {
+  renewal_date?: string;
+  amount?: number;
+  billing_cycle?: BillingCycle;
+  currency?: string;
 };
 
 type AuthPayload = {
@@ -72,9 +83,14 @@ type AppContextShape = {
   analytics: Analytics | null;
   notificationStatus: Notifications.PermissionStatus | null;
   needsAuthForMoreSubscriptions: boolean;
+  remindersEnabled: boolean;
+  reminderLeadDays: number;
   setPreferredCurrency: (currency: string) => Promise<void>;
+  setReminderLeadDays: (days: number) => Promise<void>;
+  setRemindersEnabled: (enabled: boolean) => Promise<void>;
   refreshAll: () => Promise<void>;
   addSubscription: (payload: AddSubscriptionInput) => Promise<{ requiresAuth: boolean }>;
+  updateSubscription: (id: string, payload: UpdateSubscriptionInput) => Promise<void>;
   deleteSubscription: (id: string) => Promise<void>;
   login: (payload: AuthPayload) => Promise<void>;
   register: (payload: AuthPayload) => Promise<void>;
@@ -92,6 +108,8 @@ const STORAGE_KEYS = {
   userEmail: "subscription-hub:user-email",
   currency: "subscription-hub:currency",
   deviceId: "subscription-hub:device-id",
+  remindersEnabled: "subscription-hub:reminders-enabled",
+  reminderLeadDays: "subscription-hub:reminder-lead-days",
 };
 
 const defaultAnalytics: Analytics = {
@@ -101,7 +119,22 @@ const defaultAnalytics: Analytics = {
   upcoming_renewals: [],
   currency: "EUR",
   subscriptions_count: 0,
+  average_monthly_per_subscription: 0,
+  top_category: null,
+  upcoming_renewals_count: 0,
+  next_renewal_date: null,
 };
+
+const defaultReminderLeadDays = 3;
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 const AppContext = createContext<AppContextShape | null>(null);
 
@@ -165,14 +198,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notificationStatus, setNotificationStatus] = useState<Notifications.PermissionStatus | null>(
     null
   );
+  const [remindersEnabled, setRemindersEnabledState] = useState(false);
+  const [reminderLeadDays, setReminderLeadDaysState] = useState(defaultReminderLeadDays);
+
+  const scheduleRenewalReminders = useCallback(
+    async (subscriptionList: Subscription[], leadDays: number) => {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      if (!remindersEnabled || notificationStatus !== "granted") {
+        return;
+      }
+
+      const now = new Date();
+      for (const subscription of subscriptionList) {
+        const reminderDate = new Date(`${subscription.renewal_date}T09:00:00`);
+        reminderDate.setDate(reminderDate.getDate() - leadDays);
+        if (Number.isNaN(reminderDate.getTime()) || reminderDate <= now) {
+          continue;
+        }
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: `Renewal soon: ${subscription.name}`,
+            body: `${subscription.name} renews in ${leadDays} day${leadDays > 1 ? "s" : ""}.`,
+            data: {
+              subscriptionId: subscription.id,
+            },
+          },
+          trigger: reminderDate,
+        });
+      }
+    },
+    [notificationStatus, remindersEnabled]
+  );
 
   const initialize = useCallback(async () => {
-    const [storedToken, storedEmail, storedCurrency, storedDeviceId] = await Promise.all([
+    const [storedToken, storedEmail, storedCurrency, storedDeviceId, storedRemindersEnabled, storedLeadDays] =
+      await Promise.all([
       AsyncStorage.getItem(STORAGE_KEYS.token),
       AsyncStorage.getItem(STORAGE_KEYS.userEmail),
       AsyncStorage.getItem(STORAGE_KEYS.currency),
       AsyncStorage.getItem(STORAGE_KEYS.deviceId),
+      AsyncStorage.getItem(STORAGE_KEYS.remindersEnabled),
+      AsyncStorage.getItem(STORAGE_KEYS.reminderLeadDays),
     ]);
+    const permission = await Notifications.getPermissionsAsync();
+    setNotificationStatus(permission.status);
 
     const resolvedDeviceId = storedDeviceId ?? buildDeviceId();
     if (!storedDeviceId) {
@@ -182,6 +251,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (storedToken) setToken(storedToken);
     if (storedEmail) setUserEmail(storedEmail);
     if (storedCurrency) setPreferredCurrencyState(storedCurrency);
+    if (storedRemindersEnabled) setRemindersEnabledState(storedRemindersEnabled === "true");
+    if (storedLeadDays) {
+      const parsed = Number(storedLeadDays);
+      if (!Number.isNaN(parsed) && parsed > 0 && parsed <= 30) {
+        setReminderLeadDaysState(parsed);
+      }
+    }
     setDeviceId(resolvedDeviceId);
   }, []);
 
@@ -219,9 +295,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [deviceId, token, preferredCurrency, refreshAll]);
 
+  useEffect(() => {
+    void scheduleRenewalReminders(subscriptions, reminderLeadDays);
+  }, [subscriptions, reminderLeadDays, scheduleRenewalReminders]);
+
   const setPreferredCurrency = useCallback(async (currency: string) => {
     setPreferredCurrencyState(currency);
     await AsyncStorage.setItem(STORAGE_KEYS.currency, currency);
+  }, []);
+
+  const setReminderLeadDays = useCallback(async (days: number) => {
+    setReminderLeadDaysState(days);
+    await AsyncStorage.setItem(STORAGE_KEYS.reminderLeadDays, String(days));
+  }, []);
+
+  const setRemindersEnabled = useCallback(async (enabled: boolean) => {
+    setRemindersEnabledState(enabled);
+    await AsyncStorage.setItem(STORAGE_KEYS.remindersEnabled, String(enabled));
   }, []);
 
   const loginWithEndpoint = useCallback(
@@ -296,6 +386,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [deviceId, refreshAll, token]
   );
 
+  const updateSubscription = useCallback(
+    async (id: string, payload: UpdateSubscriptionInput) => {
+      if (!deviceId) return;
+      await apiRequest<Subscription>({
+        path: `/subscriptions/${id}`,
+        method: "PUT",
+        token,
+        deviceId,
+        body: payload,
+      });
+      await refreshAll();
+    },
+    [deviceId, refreshAll, token]
+  );
+
   const deleteSubscription = useCallback(
     async (id: string) => {
       if (!deviceId) return;
@@ -313,7 +418,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const requestNotificationsPermission = useCallback(async () => {
     const result = await Notifications.requestPermissionsAsync();
     setNotificationStatus(result.status);
-  }, []);
+    if (result.status === "granted") {
+      await scheduleRenewalReminders(subscriptions, reminderLeadDays);
+    }
+  }, [reminderLeadDays, scheduleRenewalReminders, subscriptions]);
 
   const needsAuthForMoreSubscriptions = !token && subscriptions.length >= 10;
 
@@ -329,9 +437,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       analytics,
       notificationStatus,
       needsAuthForMoreSubscriptions,
+      remindersEnabled,
+      reminderLeadDays,
       setPreferredCurrency,
+      setReminderLeadDays,
+      setRemindersEnabled,
       refreshAll,
       addSubscription,
+      updateSubscription,
       deleteSubscription,
       login,
       register,
@@ -349,9 +462,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       analytics,
       notificationStatus,
       needsAuthForMoreSubscriptions,
+      remindersEnabled,
+      reminderLeadDays,
       setPreferredCurrency,
+      setReminderLeadDays,
+      setRemindersEnabled,
       refreshAll,
       addSubscription,
+      updateSubscription,
       deleteSubscription,
       login,
       register,

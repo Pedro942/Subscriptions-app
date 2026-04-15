@@ -18,6 +18,11 @@ export default function AnalyticsScreen() {
     (a, b) => b[1].monthly - a[1].monthly
   );
   const maxMonthly = categoryEntries[0]?.[1].monthly ?? 1;
+  const monthlyTotal = analytics?.monthly_total ?? 0;
+  const yearlyTotal = analytics?.yearly_total ?? 0;
+  const averageSpend = analytics?.average_monthly_per_subscription ?? 0;
+  const topCategory = analytics?.top_category?.name ?? "—";
+  const renewalsCount = analytics?.upcoming_renewals_count ?? 0;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -33,6 +38,28 @@ export default function AnalyticsScreen() {
           <Text style={styles.value}>
             {formatCurrency(analytics?.yearly_total ?? 0, preferredCurrency)}
           </Text>
+        </View>
+      </View>
+
+      <View style={styles.kpiGrid}>
+        <View style={styles.kpiCard}>
+          <Text style={styles.kpiLabel}>Average / subscription</Text>
+          <Text style={styles.kpiValue}>{formatCurrency(averageSpend, preferredCurrency)}</Text>
+        </View>
+        <View style={styles.kpiCard}>
+          <Text style={styles.kpiLabel}>Top category</Text>
+          <Text style={styles.kpiValue}>{topCategory}</Text>
+        </View>
+      </View>
+
+      <View style={styles.kpiGrid}>
+        <View style={styles.kpiCard}>
+          <Text style={styles.kpiLabel}>Upcoming renewals</Text>
+          <Text style={styles.kpiValue}>{renewalsCount}</Text>
+        </View>
+        <View style={styles.kpiCard}>
+          <Text style={styles.kpiLabel}>Savings target (10%)</Text>
+          <Text style={styles.kpiValue}>{formatCurrency(monthlyTotal * 0.1, preferredCurrency)}</Text>
         </View>
       </View>
 
@@ -78,6 +105,14 @@ export default function AnalyticsScreen() {
           <Text style={styles.emptyText}>No renewals in the next 30 days.</Text>
         )}
       </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Projection</Text>
+        <Text style={styles.projectionText}>
+          At this pace you are spending {formatCurrency(monthlyTotal, preferredCurrency)} per month and{" "}
+          {formatCurrency(yearlyTotal, preferredCurrency)} per year.
+        </Text>
+      </View>
     </ScrollView>
   );
 }
@@ -120,6 +155,28 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.radius.lg,
     padding: theme.spacing.md,
+  },
+  kpiGrid: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+  },
+  kpiCard: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+  },
+  kpiLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  kpiValue: {
+    color: theme.colors.textPrimary,
+    fontSize: 15,
+    fontWeight: "700",
   },
   cardTitle: {
     color: theme.colors.textPrimary,
@@ -177,5 +234,9 @@ const styles = StyleSheet.create({
   renewalAmount: {
     color: theme.colors.textPrimary,
     fontWeight: "600",
+  },
+  projectionText: {
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
   },
 });

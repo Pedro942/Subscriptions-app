@@ -13,6 +13,10 @@ export default function SettingsScreen() {
     logout,
     notificationStatus,
     requestNotificationsPermission,
+    remindersEnabled,
+    setRemindersEnabled,
+    reminderLeadDays,
+    setReminderLeadDays,
   } = useApp();
 
   async function handleCurrencyChange(currency: string) {
@@ -28,6 +32,25 @@ export default function SettingsScreen() {
       await requestNotificationsPermission();
     } catch {
       Alert.alert("Error", "Notification permissions could not be updated.");
+    }
+  }
+
+  async function handleToggleReminders(enabled: boolean) {
+    try {
+      await setRemindersEnabled(enabled);
+      if (enabled && notificationStatus !== "granted") {
+        await requestNotificationsPermission();
+      }
+    } catch {
+      Alert.alert("Error", "Reminder settings could not be updated.");
+    }
+  }
+
+  async function handleLeadDays(days: number) {
+    try {
+      await setReminderLeadDays(days);
+    } catch {
+      Alert.alert("Error", "Reminder lead time could not be updated.");
     }
   }
 
@@ -62,6 +85,35 @@ export default function SettingsScreen() {
             {notificationStatus === "granted" ? "Notifications enabled" : "Enable notifications"}
           </Text>
         </Pressable>
+        <View style={styles.reminderToggleRow}>
+          <Pressable
+            style={[styles.toggleChip, remindersEnabled && styles.toggleChipActive]}
+            onPress={() => void handleToggleReminders(true)}
+          >
+            <Text style={styles.toggleChipText}>On</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.toggleChip, !remindersEnabled && styles.toggleChipActive]}
+            onPress={() => void handleToggleReminders(false)}
+          >
+            <Text style={styles.toggleChipText}>Off</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.cardSubtitle}>Notify me this many days before renewal:</Text>
+        <View style={styles.currencyGrid}>
+          {[1, 3, 7].map((days) => {
+            const active = reminderLeadDays === days;
+            return (
+              <Pressable
+                key={days}
+                onPress={() => void handleLeadDays(days)}
+                style={[styles.currencyChip, active && styles.currencyChipActive]}
+              >
+                <Text style={[styles.currencyText, active && styles.currencyTextActive]}>{days}d</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.card}>
@@ -147,6 +199,28 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: theme.colors.textPrimary,
     fontWeight: "700",
+  },
+  reminderToggleRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  toggleChip: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  toggleChipActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: "#1A1328",
+  },
+  toggleChipText: {
+    color: theme.colors.textPrimary,
+    fontWeight: "600",
   },
   secondaryButton: {
     borderWidth: 1,

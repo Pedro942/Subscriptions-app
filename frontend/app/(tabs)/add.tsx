@@ -80,7 +80,13 @@ export default function AddScreen() {
         Pick a popular platform by category or create a custom subscription.
       </Text>
 
-      <Pressable style={styles.customButton} onPress={() => setShowCustomModal(true)}>
+      <Pressable
+        style={styles.customButton}
+        onPress={() => {
+          setSelectedPlatformId(null);
+          setShowCustomModal(true);
+        }}
+      >
         <Text style={styles.customButtonText}>+ Add custom subscription</Text>
       </Pressable>
 

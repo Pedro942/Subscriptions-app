@@ -104,6 +104,10 @@ class AnalyticsResponse(BaseModel):
     upcoming_renewals: list[dict[str, str | float]]
     currency: str
     subscriptions_count: int
+    average_monthly_per_subscription: float
+    top_category: dict[str, str | float] | None = None
+    upcoming_renewals_count: int
+    next_renewal_date: str | None = None
 
 
 class OwnerContext(BaseModel):
@@ -578,6 +582,22 @@ async def get_analytics(
     }
     upcoming_renewals.sort(key=lambda value: value["renewal_date"])
 
+    average_monthly = monthly_total / len(items) if items else 0.0
+    top_category_name = None
+    top_category_monthly = 0.0
+    if rounded_categories:
+        top_category_name, totals = max(
+            rounded_categories.items(), key=lambda entry: entry[1]["monthly"]
+        )
+        top_category_monthly = totals["monthly"]
+
+    future_renewals = sorted(
+        renewal.isoformat()
+        for renewal in (item["renewal_date"] for item in items)
+        if isinstance(renewal, date) and renewal >= date.today()
+    )
+    next_renewal_date = future_renewals[0] if future_renewals else None
+
     return AnalyticsResponse(
         monthly_total=round(monthly_total, 2),
         yearly_total=round(yearly_total, 2),
@@ -585,4 +605,12 @@ async def get_analytics(
         upcoming_renewals=upcoming_renewals,
         currency=target_currency,
         subscriptions_count=len(items),
+        average_monthly_per_subscription=round(average_monthly, 2),
+        top_category=(
+            {"name": top_category_name, "monthly": round(top_category_monthly, 2)}
+            if top_category_name
+            else None
+        ),
+        upcoming_renewals_count=len(upcoming_renewals),
+        next_renewal_date=next_renewal_date,
     )
