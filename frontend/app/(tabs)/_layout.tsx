@@ -7,15 +7,25 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: theme.colors.surface },
+        sceneStyle: { backgroundColor: theme.colors.background },
+        headerStyle: { backgroundColor: theme.colors.background },
         headerTintColor: theme.colors.textPrimary,
+        headerShadowVisible: false,
+        headerTitleStyle: { fontWeight: "700", fontSize: 18 },
         tabBarStyle: {
+          position: "absolute",
+          left: 14,
+          right: 14,
+          bottom: 12,
+          height: 68,
+          borderRadius: theme.radius.xl,
+          borderTopWidth: 0,
           backgroundColor: theme.colors.surface,
-          borderTopColor: theme.colors.border,
-          height: 64,
           paddingBottom: 8,
           paddingTop: 8,
+          ...theme.effects.cardShadow,
         },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
         tabBarActiveTintColor: theme.colors.accent,
         tabBarInactiveTintColor: theme.colors.textSecondary,
       }}
@@ -24,7 +34,9 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => <FontAwesome5 name="home" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome5 name="home" color={color} size={size} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -58,7 +70,9 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: "Settings",
-          tabBarIcon: ({ color, size }) => <FontAwesome5 name="cog" color={color} size={size} />,
+          tabBarIcon: ({ color, size }) => (
+            <FontAwesome5 name="cog" color={color} size={size} />
+          ),
         }}
       />
     </Tabs>

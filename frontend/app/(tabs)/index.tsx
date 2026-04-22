@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -15,7 +16,11 @@ import {
 } from "react-native";
 
 import { theme } from "../../src/constants/theme";
-import { SharedMember, Subscription, useApp } from "../../src/context/AppContext";
+import {
+  SharedMember,
+  Subscription,
+  useApp,
+} from "../../src/context/AppContext";
 
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -35,7 +40,10 @@ function parseSharedWith(input: string): SharedMember[] {
       const ratio = Number(ratioRaw);
       return { name: nameRaw, share_ratio: Number.isFinite(ratio) ? ratio : 0 };
     })
-    .filter((member) => member.name && member.share_ratio > 0 && member.share_ratio <= 1);
+    .filter(
+      (member) =>
+        member.name && member.share_ratio > 0 && member.share_ratio <= 1,
+    );
 }
 
 const billingCycles = ["monthly", "yearly"] as const;
@@ -59,10 +67,12 @@ export default function HomeScreen() {
     sortOrder,
     setSortOrder,
   } = useApp();
-  const [editingSubscription, setEditingSubscription] = useState<Subscription | null>(null);
+  const [editingSubscription, setEditingSubscription] =
+    useState<Subscription | null>(null);
   const [editAmount, setEditAmount] = useState("");
   const [editRenewalDate, setEditRenewalDate] = useState("");
-  const [editBillingCycle, setEditBillingCycle] = useState<(typeof billingCycles)[number]>("monthly");
+  const [editBillingCycle, setEditBillingCycle] =
+    useState<(typeof billingCycles)[number]>("monthly");
   const [editTrialEnabled, setEditTrialEnabled] = useState(false);
   const [editTrialEndDate, setEditTrialEndDate] = useState("");
   const [editSharedWithInput, setEditSharedWithInput] = useState("");
@@ -72,12 +82,12 @@ export default function HomeScreen() {
       Array.from(new Set(subscriptions.map((item) => item.category)))
         .sort((a, b) => a.localeCompare(b))
         .slice(0, 12),
-    [subscriptions]
+    [subscriptions],
   );
 
   const monthlyAverage = useMemo(
     () => analytics?.average_monthly_per_subscription ?? 0,
-    [analytics?.average_monthly_per_subscription]
+    [analytics?.average_monthly_per_subscription],
   );
 
   function openEditModal(subscription: Subscription) {
@@ -88,7 +98,9 @@ export default function HomeScreen() {
     setEditTrialEnabled(Boolean(subscription.is_trial));
     setEditTrialEndDate(subscription.trial_end_date ?? "");
     setEditSharedWithInput(
-      (subscription.shared_with ?? []).map((member) => `${member.name}:${member.share_ratio}`).join(", ")
+      (subscription.shared_with ?? [])
+        .map((member) => `${member.name}:${member.share_ratio}`)
+        .join(", "),
     );
   }
 
@@ -99,7 +111,10 @@ export default function HomeScreen() {
       return;
     }
     if (editTrialEnabled && !editTrialEndDate) {
-      Alert.alert("Missing trial end", "Provide a trial end date for trial subscriptions.");
+      Alert.alert(
+        "Missing trial end",
+        "Provide a trial end date for trial subscriptions.",
+      );
       return;
     }
     try {
@@ -135,9 +150,16 @@ export default function HomeScreen() {
         placeholder="Search subscriptions"
         placeholderTextColor={theme.colors.textSecondary}
       />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+      >
         <Pressable
-          style={[styles.filterChip, !categoryFilter && styles.filterChipActive]}
+          style={[
+            styles.filterChip,
+            !categoryFilter && styles.filterChipActive,
+          ]}
           onPress={() => setCategoryFilter(null)}
         >
           <Text style={styles.filterText}>All categories</Text>
@@ -145,7 +167,10 @@ export default function HomeScreen() {
         {categories.map((category) => (
           <Pressable
             key={category}
-            style={[styles.filterChip, categoryFilter === category && styles.filterChipActive]}
+            style={[
+              styles.filterChip,
+              categoryFilter === category && styles.filterChipActive,
+            ]}
             onPress={() => setCategoryFilter(category)}
           >
             <Text style={styles.filterText}>{category}</Text>
@@ -153,15 +178,26 @@ export default function HomeScreen() {
         ))}
       </ScrollView>
       <View style={styles.sortRow}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sortChips}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.sortChips}
+        >
           {(["renewal_date", "amount", "name"] as const).map((value) => (
             <Pressable
               key={value}
-              style={[styles.sortChip, sortBy === value && styles.sortChipActive]}
+              style={[
+                styles.sortChip,
+                sortBy === value && styles.sortChipActive,
+              ]}
               onPress={() => setSortBy(value)}
             >
               <Text style={styles.sortChipText}>
-                {value === "renewal_date" ? "Renewal" : value === "amount" ? "Amount" : "Name"}
+                {value === "renewal_date"
+                  ? "Renewal"
+                  : value === "amount"
+                    ? "Amount"
+                    : "Name"}
               </Text>
             </Pressable>
           ))}
@@ -169,7 +205,9 @@ export default function HomeScreen() {
             style={[styles.sortChip, styles.sortChipOrder]}
             onPress={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
           >
-            <Text style={styles.sortChipText}>{sortOrder === "asc" ? "Asc" : "Desc"}</Text>
+            <Text style={styles.sortChipText}>
+              {sortOrder === "asc" ? "Asc" : "Desc"}
+            </Text>
           </Pressable>
         </ScrollView>
       </View>
@@ -188,20 +226,27 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <View style={styles.heroCard}>
         <Text style={styles.heroLabel}>Monthly spend</Text>
-        <Text style={styles.heroValue}>{formatCurrency(analytics?.monthly_total ?? 0, preferredCurrency)}</Text>
+        <Text style={styles.heroValue}>
+          {formatCurrency(analytics?.monthly_total ?? 0, preferredCurrency)}
+        </Text>
         <Text style={styles.heroSubLabel}>
-          Yearly total: {formatCurrency(analytics?.yearly_total ?? 0, preferredCurrency)}
+          Yearly total:{" "}
+          {formatCurrency(analytics?.yearly_total ?? 0, preferredCurrency)}
         </Text>
       </View>
 
       <View style={styles.insightRow}>
         <View style={styles.insightCard}>
           <Text style={styles.insightLabel}>Avg / subscription</Text>
-          <Text style={styles.insightValue}>{formatCurrency(monthlyAverage, preferredCurrency)}</Text>
+          <Text style={styles.insightValue}>
+            {formatCurrency(monthlyAverage, preferredCurrency)}
+          </Text>
         </View>
         <View style={styles.insightCard}>
           <Text style={styles.insightLabel}>Top category</Text>
-          <Text style={styles.insightValue}>{analytics?.top_category?.name ?? "—"}</Text>
+          <Text style={styles.insightValue}>
+            {analytics?.top_category?.name ?? "—"}
+          </Text>
         </View>
       </View>
 
@@ -219,9 +264,12 @@ export default function HomeScreen() {
       {needsAuthForMoreSubscriptions ? (
         <Link href="/auth" asChild>
           <Pressable style={styles.authPrompt}>
-            <Text style={styles.authPromptTitle}>Unlock unlimited subscriptions</Text>
+            <Text style={styles.authPromptTitle}>
+              Unlock unlimited subscriptions
+            </Text>
             <Text style={styles.authPromptText}>
-              You reached 10 subscriptions. Sign in to keep adding and enable full analytics history.
+              You reached 10 subscriptions. Sign in to keep adding and enable
+              full analytics history.
             </Text>
           </Pressable>
         </Link>
@@ -240,46 +288,82 @@ export default function HomeScreen() {
         ListEmptyComponent={
           <View style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>No subscriptions yet</Text>
-            <Text style={styles.emptyText}>Use the Add tab to track Netflix, Spotify, and more.</Text>
+            <Text style={styles.emptyText}>
+              Use the Add tab to track Netflix, Spotify, and more.
+            </Text>
           </View>
         }
         renderItem={({ item }) => (
           <View style={styles.itemCard}>
             <View style={styles.itemLeading}>
-              <View style={styles.iconCircle}>
-                <Text style={styles.iconLabel}>{item.name.slice(0, 1).toUpperCase()}</Text>
-              </View>
+              {item.platform_logo_url ? (
+                <Image
+                  source={{ uri: item.platform_logo_url }}
+                  style={styles.logoImage}
+                />
+              ) : (
+                <View style={styles.iconCircle}>
+                  <Text style={styles.iconLabel}>
+                    {item.name.slice(0, 1).toUpperCase()}
+                  </Text>
+                </View>
+              )}
               <View style={styles.itemTextBlock}>
                 <Text style={styles.itemName}>{item.name}</Text>
                 <Text style={styles.itemMeta}>
                   {item.category} · Renews {item.renewal_date}
                 </Text>
+                {item.platform_offer_name ? (
+                  <Text style={styles.itemOfferMeta}>
+                    Offer: {item.platform_offer_name}
+                  </Text>
+                ) : null}
                 {item.is_trial && item.trial_end_date ? (
-                  <Text style={styles.itemTrialMeta}>Trial until {item.trial_end_date}</Text>
+                  <Text style={styles.itemTrialMeta}>
+                    Trial until {item.trial_end_date}
+                  </Text>
                 ) : null}
                 {(item.duplicate_count ?? 0) > 1 ? (
-                  <Text style={styles.duplicateTag}>Potential duplicate ({item.duplicate_count})</Text>
+                  <Text style={styles.duplicateTag}>
+                    Potential duplicate ({item.duplicate_count})
+                  </Text>
                 ) : null}
                 {(item.shared_with ?? []).length ? (
                   <Text style={styles.itemShareMeta}>
-                    Shared: {(item.shared_with ?? []).map((member) => member.name).join(", ")}
+                    Shared:{" "}
+                    {(item.shared_with ?? [])
+                      .map((member) => member.name)
+                      .join(", ")}
                   </Text>
                 ) : null}
               </View>
             </View>
             <View style={styles.itemActions}>
               <Text style={styles.itemPrice}>
-                {formatCurrency(item.amount, item.currency)} · {item.billing_cycle}
+                {formatCurrency(item.amount, item.currency)} ·{" "}
+                {item.billing_cycle}
               </Text>
               <View style={styles.itemActionRow}>
                 <Pressable onPress={() => void handleMarkRenewed(item.id)}>
-                  <FontAwesome5 name="check-circle" size={16} color={theme.colors.success} />
+                  <FontAwesome5
+                    name="check-circle"
+                    size={16}
+                    color={theme.colors.success}
+                  />
                 </Pressable>
                 <Pressable onPress={() => openEditModal(item)}>
-                  <FontAwesome5 name="edit" size={16} color={theme.colors.textSecondary} />
+                  <FontAwesome5
+                    name="edit"
+                    size={16}
+                    color={theme.colors.textSecondary}
+                  />
                 </Pressable>
                 <Pressable onPress={() => void deleteSubscription(item.id)}>
-                  <FontAwesome5 name="trash" size={16} color={theme.colors.textSecondary} />
+                  <FontAwesome5
+                    name="trash"
+                    size={16}
+                    color={theme.colors.textSecondary}
+                  />
                 </Pressable>
               </View>
             </View>
@@ -287,11 +371,17 @@ export default function HomeScreen() {
         )}
       />
 
-      <Modal visible={Boolean(editingSubscription)} animationType="slide" transparent>
+      <Modal
+        visible={Boolean(editingSubscription)}
+        animationType="slide"
+        transparent
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Edit subscription</Text>
-            <Text style={styles.modalSubtitle}>{editingSubscription?.name}</Text>
+            <Text style={styles.modalSubtitle}>
+              {editingSubscription?.name}
+            </Text>
             <TextInput
               style={styles.input}
               value={editAmount}
@@ -311,7 +401,10 @@ export default function HomeScreen() {
               {billingCycles.map((cycle) => (
                 <Pressable
                   key={cycle}
-                  style={[styles.cycleChip, editBillingCycle === cycle && styles.cycleChipActive]}
+                  style={[
+                    styles.cycleChip,
+                    editBillingCycle === cycle && styles.cycleChipActive,
+                  ]}
                   onPress={() => setEditBillingCycle(cycle)}
                 >
                   <Text style={styles.cycleChipText}>{cycle}</Text>
@@ -320,13 +413,19 @@ export default function HomeScreen() {
             </View>
             <View style={styles.toggleRow}>
               <Pressable
-                style={[styles.toggleChip, editTrialEnabled && styles.toggleChipActive]}
+                style={[
+                  styles.toggleChip,
+                  editTrialEnabled && styles.toggleChipActive,
+                ]}
                 onPress={() => setEditTrialEnabled(true)}
               >
                 <Text style={styles.toggleText}>Trial</Text>
               </Pressable>
               <Pressable
-                style={[styles.toggleChip, !editTrialEnabled && styles.toggleChipActive]}
+                style={[
+                  styles.toggleChip,
+                  !editTrialEnabled && styles.toggleChipActive,
+                ]}
                 onPress={() => setEditTrialEnabled(false)}
               >
                 <Text style={styles.toggleText}>Paid</Text>
@@ -349,10 +448,16 @@ export default function HomeScreen() {
               placeholderTextColor={theme.colors.textSecondary}
             />
             <View style={styles.modalActions}>
-              <Pressable style={styles.secondaryButton} onPress={() => setEditingSubscription(null)}>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => setEditingSubscription(null)}
+              >
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.primaryButton} onPress={() => void submitEdit()}>
+              <Pressable
+                style={styles.primaryButton}
+                onPress={() => void submitEdit()}
+              >
                 <Text style={styles.primaryButtonText}>Save</Text>
               </Pressable>
             </View>
@@ -380,7 +485,8 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.xl,
     padding: theme.spacing.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.borderStrong,
+    ...theme.effects.cardShadow,
     marginBottom: theme.spacing.md,
   },
   heroLabel: {
@@ -409,6 +515,7 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.md,
+    ...theme.effects.softShadow,
   },
   insightLabel: {
     color: theme.colors.textSecondary,
@@ -424,7 +531,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.colors.warning,
-    backgroundColor: "#2A2214",
+    backgroundColor: theme.colors.surfaceSoft,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
@@ -438,7 +545,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   authPrompt: {
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.colors.accent,
@@ -499,7 +606,7 @@ const styles = StyleSheet.create({
   },
   filterChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   filterText: {
     color: theme.colors.textPrimary,
@@ -521,7 +628,7 @@ const styles = StyleSheet.create({
   },
   sortChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   sortChipOrder: {
     borderColor: theme.colors.warning,
@@ -558,6 +665,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.md,
     gap: theme.spacing.sm,
+    ...theme.effects.softShadow,
   },
   itemLeading: {
     flexDirection: "row",
@@ -572,13 +680,19 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#222",
+    backgroundColor: theme.colors.surfaceElevated,
     alignItems: "center",
     justifyContent: "center",
   },
   iconLabel: {
     color: theme.colors.textPrimary,
     fontWeight: "700",
+  },
+  logoImage: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: "#fff",
   },
   itemName: {
     color: theme.colors.textPrimary,
@@ -588,6 +702,11 @@ const styles = StyleSheet.create({
   itemMeta: {
     color: theme.colors.textSecondary,
     marginTop: 3,
+    fontSize: 12,
+  },
+  itemOfferMeta: {
+    color: theme.colors.textMuted,
+    marginTop: 2,
     fontSize: 12,
   },
   itemTrialMeta: {
@@ -665,7 +784,7 @@ const styles = StyleSheet.create({
   },
   cycleChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   cycleChipText: {
     color: theme.colors.textPrimary,
@@ -685,7 +804,7 @@ const styles = StyleSheet.create({
   },
   toggleChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   toggleText: {
     color: theme.colors.textPrimary,

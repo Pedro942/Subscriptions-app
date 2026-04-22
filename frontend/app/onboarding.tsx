@@ -24,18 +24,21 @@ export default function OnboardingScreen() {
     () => [
       {
         title: "Welcome to Subscription Hub",
-        subtitle: "Track trials, renewals, spending insights, and shared subscriptions in one place.",
+        subtitle:
+          "Track trials, renewals, spending insights, and shared subscriptions in one place.",
       },
       {
         title: "Choose your default currency",
-        subtitle: "All analytics will be converted to this currency. You can change it later in Settings.",
+        subtitle:
+          "All analytics will be converted to this currency. You can change it later in Settings.",
       },
       {
         title: "Enable reminder defaults",
-        subtitle: "Set reminders now, and we will notify you before renewals and trial conversions.",
+        subtitle:
+          "Set reminders now, and we will notify you before renewals and trial conversions.",
       },
     ],
-    []
+    [],
   );
 
   async function finish() {
@@ -61,7 +64,11 @@ export default function OnboardingScreen() {
                 style={[styles.chip, active && styles.chipActive]}
                 onPress={() => void setPreferredCurrency(currency)}
               >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{currency}</Text>
+                <Text
+                  style={[styles.chipText, active && styles.chipTextActive]}
+                >
+                  {currency}
+                </Text>
               </Pressable>
             );
           })}
@@ -75,13 +82,27 @@ export default function OnboardingScreen() {
               style={[styles.chip, remindersEnabled && styles.chipActive]}
               onPress={() => void setRemindersEnabled(true)}
             >
-              <Text style={[styles.chipText, remindersEnabled && styles.chipTextActive]}>Reminders ON</Text>
+              <Text
+                style={[
+                  styles.chipText,
+                  remindersEnabled && styles.chipTextActive,
+                ]}
+              >
+                Reminders ON
+              </Text>
             </Pressable>
             <Pressable
               style={[styles.chip, !remindersEnabled && styles.chipActive]}
               onPress={() => void setRemindersEnabled(false)}
             >
-              <Text style={[styles.chipText, !remindersEnabled && styles.chipTextActive]}>Reminders OFF</Text>
+              <Text
+                style={[
+                  styles.chipText,
+                  !remindersEnabled && styles.chipTextActive,
+                ]}
+              >
+                Reminders OFF
+              </Text>
             </Pressable>
           </View>
           <Text style={styles.subheading}>Notify me before renewal:</Text>
@@ -94,7 +115,11 @@ export default function OnboardingScreen() {
                   style={[styles.chip, active && styles.chipActive]}
                   onPress={() => void setReminderLeadDays(days)}
                 >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{days} days</Text>
+                  <Text
+                    style={[styles.chipText, active && styles.chipTextActive]}
+                  >
+                    {days} days
+                  </Text>
                 </Pressable>
               );
             })}
@@ -104,14 +129,20 @@ export default function OnboardingScreen() {
 
       <View style={styles.actions}>
         {step > 0 ? (
-          <Pressable style={styles.secondaryButton} onPress={() => setStep((prev) => Math.max(0, prev - 1))}>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => setStep((prev) => Math.max(0, prev - 1))}
+          >
             <Text style={styles.secondaryButtonText}>Back</Text>
           </Pressable>
         ) : (
           <View />
         )}
         {step < steps.length - 1 ? (
-          <Pressable style={styles.primaryButton} onPress={() => setStep((prev) => prev + 1)}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => setStep((prev) => prev + 1)}
+          >
             <Text style={styles.primaryButtonText}>Next</Text>
           </Pressable>
         ) : (
@@ -132,6 +163,7 @@ const styles = StyleSheet.create({
   content: {
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
+    paddingBottom: 120,
   },
   stepIndicator: {
     color: theme.colors.textSecondary,
@@ -168,7 +200,7 @@ const styles = StyleSheet.create({
   },
   chipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   chipText: {
     color: theme.colors.textSecondary,
@@ -184,10 +216,11 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.borderStrong,
     borderRadius: theme.radius.md,
     paddingVertical: 10,
     paddingHorizontal: 16,
+    backgroundColor: theme.colors.surfaceSoft,
   },
   secondaryButtonText: {
     color: theme.colors.textSecondary,
@@ -198,6 +231,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.md,
     paddingVertical: 10,
     paddingHorizontal: 18,
+    ...theme.effects.softShadow,
   },
   primaryButtonText: {
     color: theme.colors.textPrimary,

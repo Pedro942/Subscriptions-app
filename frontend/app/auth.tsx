@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
 
 import { theme } from "../src/constants/theme";
@@ -30,7 +37,10 @@ export default function AuthScreen() {
       }
       router.back();
     } catch {
-      Alert.alert("Authentication failed", "Please verify credentials and try again.");
+      Alert.alert(
+        "Authentication failed",
+        "Please verify credentials and try again.",
+      );
     } finally {
       setPending(false);
     }
@@ -38,9 +48,12 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{mode === "login" ? "Welcome back" : "Create account"}</Text>
+      <Text style={styles.title}>
+        {mode === "login" ? "Welcome back" : "Create account"}
+      </Text>
       <Text style={styles.subtitle}>
-        Accounts are required after 10 subscriptions to unlock unlimited tracking.
+        Accounts are required after 10 subscriptions to unlock unlimited
+        tracking.
       </Text>
 
       <View style={styles.modeRow}>
@@ -51,7 +64,10 @@ export default function AuthScreen() {
           <Text style={styles.modeText}>Login</Text>
         </Pressable>
         <Pressable
-          style={[styles.modeChip, mode === "register" && styles.modeChipActive]}
+          style={[
+            styles.modeChip,
+            mode === "register" && styles.modeChipActive,
+          ]}
           onPress={() => setMode("register")}
         >
           <Text style={styles.modeText}>Register</Text>
@@ -76,8 +92,13 @@ export default function AuthScreen() {
         placeholderTextColor={theme.colors.textSecondary}
       />
 
-      <Pressable style={[styles.submitButton, pending && styles.submitButtonDisabled]} onPress={submit}>
-        <Text style={styles.submitText}>{pending ? "Please wait..." : mode === "login" ? "Login" : "Register"}</Text>
+      <Pressable
+        style={[styles.submitButton, pending && styles.submitButtonDisabled]}
+        onPress={submit}
+      >
+        <Text style={styles.submitText}>
+          {pending ? "Please wait..." : mode === "login" ? "Login" : "Register"}
+        </Text>
       </Pressable>
     </View>
   );
@@ -87,7 +108,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.xl,
     justifyContent: "center",
   },
   title: {
@@ -115,7 +136,7 @@ const styles = StyleSheet.create({
   },
   modeChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   modeText: {
     color: theme.colors.textPrimary,
@@ -125,7 +146,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceElevated,
     color: theme.colors.textPrimary,
     paddingHorizontal: 12,
     paddingVertical: 11,
@@ -133,10 +154,11 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: theme.colors.accent,
-    borderRadius: theme.radius.md,
+    borderRadius: theme.radius.lg,
     alignItems: "center",
     paddingVertical: 12,
     marginTop: theme.spacing.sm,
+    ...theme.effects.softShadow,
   },
   submitButtonDisabled: {
     opacity: 0.7,

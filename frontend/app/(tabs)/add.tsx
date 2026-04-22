@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Alert,
+  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -12,7 +13,12 @@ import {
 import { useRouter } from "expo-router";
 
 import { theme } from "../../src/constants/theme";
-import { Platform, SharedMember, useApp } from "../../src/context/AppContext";
+import {
+  Platform,
+  PlatformOffer,
+  SharedMember,
+  useApp,
+} from "../../src/context/AppContext";
 
 const billingCycles = ["monthly", "yearly"] as const;
 
@@ -34,17 +40,26 @@ function parseSharedWith(input: string): SharedMember[] {
       const ratio = Number(ratioRaw);
       return { name: nameRaw, share_ratio: Number.isFinite(ratio) ? ratio : 0 };
     })
-    .filter((member) => member.name && member.share_ratio > 0 && member.share_ratio <= 1);
+    .filter(
+      (member) =>
+        member.name && member.share_ratio > 0 && member.share_ratio <= 1,
+    );
 }
 
 export default function AddScreen() {
   const router = useRouter();
-  const { addSubscription, platforms, preferredCurrency, duplicateCheck } = useApp();
-  const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(null);
+  const { addSubscription, platforms, preferredCurrency, duplicateCheck } =
+    useApp();
+  const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(
+    null,
+  );
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const [useManualPrice, setUseManualPrice] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
   const [renewalDate, setRenewalDate] = useState("");
   const [amount, setAmount] = useState("");
-  const [billingCycle, setBillingCycle] = useState<(typeof billingCycles)[number]>("monthly");
+  const [billingCycle, setBillingCycle] =
+    useState<(typeof billingCycles)[number]>("monthly");
   const [customName, setCustomName] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const [trialEndDate, setTrialEndDate] = useState("");
@@ -52,25 +67,60 @@ export default function AddScreen() {
   const [sharedWithInput, setSharedWithInput] = useState("");
 
   const groups = useMemo(() => groupedByCategory(platforms), [platforms]);
+  const selectedPlatform = useMemo(
+    () =>
+      platforms.find((platform) => platform.id === selectedPlatformId) ?? null,
+    [platforms, selectedPlatformId],
+  );
+  const selectedOffer = useMemo(
+    () =>
+      (selectedPlatform?.offers ?? []).find(
+        (offer) => offer.id === selectedOfferId,
+      ) ?? null,
+    [selectedPlatform, selectedOfferId],
+  );
+  const showManualAmount = !selectedOffer || useManualPrice;
+
+  function formatCurrency(amountValue: number, currency: string) {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(amountValue);
+  }
 
   async function submitSubscription() {
-    if (!renewalDate || !amount) {
+    if (!renewalDate || (showManualAmount && !amount)) {
       Alert.alert("Missing fields", "Please provide renewal date and amount.");
       return;
     }
     if (isTrial && !trialEndDate) {
-      Alert.alert("Missing trial date", "Set a trial end date if this is a trial.");
+      Alert.alert(
+        "Missing trial date",
+        "Set a trial end date if this is a trial.",
+      );
       return;
     }
 
     const payload = {
       platform_id: selectedPlatformId ?? undefined,
+      platform_offer_id: selectedOfferId ?? undefined,
+      use_manual_price: useManualPrice,
       custom_name: selectedPlatformId ? undefined : customName || undefined,
-      custom_category: selectedPlatformId ? undefined : customCategory || "Other",
+      custom_category: selectedPlatformId
+        ? undefined
+        : customCategory || "Other",
       renewal_date: renewalDate,
-      amount: Number(amount),
-      billing_cycle: billingCycle,
-      currency: preferredCurrency,
+      amount:
+        selectedOffer && !useManualPrice ? selectedOffer.price : Number(amount),
+      billing_cycle:
+        selectedOffer && !useManualPrice
+          ? selectedOffer.billing_cycle
+          : billingCycle,
+      currency:
+        selectedOffer && !useManualPrice
+          ? selectedOffer.currency
+          : preferredCurrency,
       trial_end_date: isTrial ? trialEndDate : null,
       is_trial: isTrial,
       shared_with: parseSharedWith(sharedWithInput),
@@ -84,10 +134,14 @@ export default function AddScreen() {
             "Potential duplicate",
             `${duplicate.message} Continue anyway?`,
             [
-              { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+              {
+                text: "Cancel",
+                style: "cancel",
+                onPress: () => resolve(false),
+              },
               { text: "Continue", onPress: () => resolve(true) },
             ],
-            { cancelable: false }
+            { cancelable: false },
           );
         });
         if (!continueAdd) {
@@ -99,12 +153,14 @@ export default function AddScreen() {
       if (result.requiresAuth) {
         Alert.alert(
           "Login required",
-          "After 10 subscriptions, please create an account in Settings to keep adding subscriptions."
+          "After 10 subscriptions, please create an account in Settings to keep adding subscriptions.",
         );
         router.push("/auth");
         return;
       }
       setSelectedPlatformId(null);
+      setSelectedOfferId(null);
+      setUseManualPrice(false);
       setRenewalDate("");
       setAmount("");
       setCustomName("");
@@ -113,9 +169,15 @@ export default function AddScreen() {
       setIsTrial(false);
       setSharedWithInput("");
       setShowCustomModal(false);
-      Alert.alert("Saved", result.duplicateWarning ?? "Subscription added successfully.");
+      Alert.alert(
+        "Saved",
+        result.duplicateWarning ?? "Subscription added successfully.",
+      );
     } catch {
-      Alert.alert("Error", "Could not add subscription. Check server connectivity.");
+      Alert.alert(
+        "Error",
+        "Could not add subscription. Check server connectivity.",
+      );
     }
   }
 
@@ -146,10 +208,28 @@ export default function AddScreen() {
                 return (
                   <Pressable
                     key={platform.id}
-                    style={[styles.platformChip, selected && styles.platformChipActive]}
-                    onPress={() => setSelectedPlatformId(platform.id)}
+                    style={[
+                      styles.platformChip,
+                      selected && styles.platformChipActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedPlatformId(platform.id);
+                      setSelectedOfferId(null);
+                      setUseManualPrice(false);
+                    }}
                   >
-                    <Text style={[styles.platformChipText, selected && styles.platformChipTextActive]}>
+                    {platform.logo_url ? (
+                      <Image
+                        source={{ uri: platform.logo_url }}
+                        style={styles.platformLogo}
+                      />
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.platformChipText,
+                        selected && styles.platformChipTextActive,
+                      ]}
+                    >
                       {platform.name}
                     </Text>
                   </Pressable>
@@ -161,6 +241,54 @@ export default function AddScreen() {
       </ScrollView>
 
       <View style={styles.formCard}>
+        {selectedPlatform ? (
+          <View style={styles.offerSection}>
+            <Text style={styles.offerSectionTitle}>
+              {selectedPlatform.name} offers
+            </Text>
+            <View style={styles.offerList}>
+              {(selectedPlatform.offers ?? []).map((offer: PlatformOffer) => {
+                const selected = selectedOfferId === offer.id;
+                return (
+                  <Pressable
+                    key={offer.id}
+                    style={[
+                      styles.offerChip,
+                      selected && styles.offerChipActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedOfferId(offer.id);
+                      setUseManualPrice(false);
+                    }}
+                  >
+                    <Text style={styles.offerName}>{offer.name}</Text>
+                    <Text style={styles.offerPrice}>
+                      {formatCurrency(offer.price, offer.currency)} ·{" "}
+                      {offer.billing_cycle}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {(selectedPlatform.offers ?? []).length ? (
+              <Pressable
+                style={styles.manualToggleButton}
+                onPress={() => setUseManualPrice((value) => !value)}
+              >
+                <Text style={styles.manualToggleText}>
+                  {useManualPrice
+                    ? "Using manual price"
+                    : "Use manual price instead"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.manualHintText}>
+                No predefined offers for this platform yet. Enter amount and
+                billing cycle manually.
+              </Text>
+            )}
+          </View>
+        ) : null}
         <Text style={styles.inputLabel}>Renewal date (YYYY-MM-DD)</Text>
         <TextInput
           style={styles.input}
@@ -169,28 +297,47 @@ export default function AddScreen() {
           placeholder="2026-12-31"
           placeholderTextColor={theme.colors.textSecondary}
         />
-        <Text style={styles.inputLabel}>Amount ({preferredCurrency})</Text>
-        <TextInput
-          style={styles.input}
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="decimal-pad"
-          placeholder="9.99"
-          placeholderTextColor={theme.colors.textSecondary}
-        />
-        <View style={styles.cycleRow}>
-          {billingCycles.map((cycle) => (
-            <Pressable
-              key={cycle}
-              onPress={() => setBillingCycle(cycle)}
-              style={[styles.cycleChip, billingCycle === cycle && styles.cycleChipActive]}
-            >
-              <Text style={styles.cycleText}>{cycle}</Text>
-            </Pressable>
-          ))}
-        </View>
+        {showManualAmount ? (
+          <>
+            <Text style={styles.inputLabel}>Amount ({preferredCurrency})</Text>
+            <TextInput
+              style={styles.input}
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              placeholder="9.99"
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+            <View style={styles.cycleRow}>
+              {billingCycles.map((cycle) => (
+                <Pressable
+                  key={cycle}
+                  onPress={() => setBillingCycle(cycle)}
+                  style={[
+                    styles.cycleChip,
+                    billingCycle === cycle && styles.cycleChipActive,
+                  ]}
+                >
+                  <Text style={styles.cycleText}>{cycle}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : (
+          <View style={styles.autoPriceBox}>
+            <Text style={styles.autoPriceLabel}>Offer price</Text>
+            <Text style={styles.autoPriceValue}>
+              {selectedOffer
+                ? `${formatCurrency(selectedOffer.price, selectedOffer.currency)} · ${selectedOffer.billing_cycle}`
+                : "No offer selected"}
+            </Text>
+          </View>
+        )}
         <View style={styles.toggleRow}>
-          <Pressable style={[styles.toggleChip, isTrial && styles.toggleChipActive]} onPress={() => setIsTrial(true)}>
+          <Pressable
+            style={[styles.toggleChip, isTrial && styles.toggleChipActive]}
+            onPress={() => setIsTrial(true)}
+          >
             <Text style={styles.toggleText}>Trial</Text>
           </Pressable>
           <Pressable
@@ -212,7 +359,9 @@ export default function AddScreen() {
             />
           </>
         ) : null}
-        <Text style={styles.inputLabel}>Shared with (name:ratio, comma-separated)</Text>
+        <Text style={styles.inputLabel}>
+          Shared with (name:ratio, comma-separated)
+        </Text>
         <TextInput
           style={styles.input}
           value={sharedWithInput}
@@ -220,7 +369,10 @@ export default function AddScreen() {
           placeholder="Alice:0.5, Bob:0.25"
           placeholderTextColor={theme.colors.textSecondary}
         />
-        <Pressable style={styles.submitButton} onPress={() => void submitSubscription()}>
+        <Pressable
+          style={styles.submitButton}
+          onPress={() => void submitSubscription()}
+        >
           <Text style={styles.submitButtonText}>Save subscription</Text>
         </Pressable>
       </View>
@@ -244,10 +396,16 @@ export default function AddScreen() {
               placeholderTextColor={theme.colors.textSecondary}
             />
             <View style={styles.modalActions}>
-              <Pressable style={styles.secondaryButton} onPress={() => setShowCustomModal(false)}>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => setShowCustomModal(false)}
+              >
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.submitButton} onPress={() => void submitSubscription()}>
+              <Pressable
+                style={styles.submitButton}
+                onPress={() => void submitSubscription()}
+              >
                 <Text style={styles.submitButtonText}>Use custom</Text>
               </Pressable>
             </View>
@@ -309,6 +467,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   platformChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 999,
@@ -326,6 +487,83 @@ const styles = StyleSheet.create({
   },
   platformChipTextActive: {
     color: theme.colors.textPrimary,
+  },
+  platformLogo: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    backgroundColor: "#fff",
+  },
+  offerSection: {
+    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    padding: 10,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  offerSectionTitle: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  offerList: {
+    gap: 8,
+  },
+  offerChip: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    padding: 8,
+    backgroundColor: theme.colors.surface,
+  },
+  offerChipActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accentSoft,
+  },
+  offerName: {
+    color: theme.colors.textPrimary,
+    fontWeight: "600",
+  },
+  offerPrice: {
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  manualToggleButton: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  manualToggleText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  manualHintText: {
+    marginTop: 10,
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+  },
+  autoPriceBox: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    padding: 10,
+    marginBottom: theme.spacing.sm,
+  },
+  autoPriceLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  autoPriceValue: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
   },
   formCard: {
     borderWidth: 1,
@@ -364,7 +602,7 @@ const styles = StyleSheet.create({
   },
   cycleChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   cycleText: {
     color: theme.colors.textPrimary,
@@ -385,7 +623,7 @@ const styles = StyleSheet.create({
   },
   toggleChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: "#1A1328",
+    backgroundColor: theme.colors.accentSoft,
   },
   toggleText: {
     color: theme.colors.textPrimary,
