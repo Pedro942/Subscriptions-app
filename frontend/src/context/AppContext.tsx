@@ -410,6 +410,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           },
         });
       }
+
+      // Trial-expiry notifications: fire 1 day before and on the day itself.
+      for (const subscription of subscriptionList) {
+        if (!subscription.is_trial || !subscription.trial_end_date) continue;
+
+        const offsets: Array<{ daysOffset: number; title: string; body: string }> = [
+          {
+            daysOffset: 1,
+            title: `Trial ending tomorrow: ${subscription.name}`,
+            body: `Your ${subscription.name} trial ends tomorrow. Cancel now to avoid being charged.`,
+          },
+          {
+            daysOffset: 0,
+            title: `Trial ending today: ${subscription.name}`,
+            body: `Your ${subscription.name} trial ends today. Make sure to cancel if you don't want to be charged.`,
+          },
+        ];
+
+        for (const { daysOffset, title, body } of offsets) {
+          const notifDate = new Date(`${subscription.trial_end_date}T09:00:00`);
+          notifDate.setDate(notifDate.getDate() - daysOffset);
+          if (Number.isNaN(notifDate.getTime()) || notifDate <= now) continue;
+
+          if (quietHoursEnabled) {
+            const hour = notifDate.getHours();
+            const insideQuietRange =
+              blockedStart < blockedEnd
+                ? hour >= blockedStart && hour < blockedEnd
+                : hour >= blockedStart || hour < blockedEnd;
+            if (insideQuietRange) {
+              notifDate.setHours(blockedEnd, 0, 0, 0);
+            }
+          }
+
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title,
+              body,
+              data: { subscriptionId: subscription.id },
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
+              date: notifDate,
+            },
+          });
+        }
+      }
     },
     [notificationStatus, remindersEnabled, quietHoursEnabled, quietHoursStart, quietHoursEnd]
   );
