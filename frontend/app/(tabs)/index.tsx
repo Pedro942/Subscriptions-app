@@ -1,6 +1,6 @@
 import { FontAwesome5 } from "@expo/vector-icons";
 import { Link } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -76,6 +76,18 @@ export default function HomeScreen() {
   const [editTrialEnabled, setEditTrialEnabled] = useState(false);
   const [editTrialEndDate, setEditTrialEndDate] = useState("");
   const [editSharedWithInput, setEditSharedWithInput] = useState("");
+  const [localSearch, setLocalSearch] = useState(searchQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearchQuery(localSearch);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [localSearch, setSearchQuery]);
 
   const categories = useMemo(
     () =>
@@ -145,8 +157,8 @@ export default function HomeScreen() {
     <View style={styles.searchSortContainer}>
       <TextInput
         style={styles.searchInput}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
+        value={localSearch}
+        onChangeText={setLocalSearch}
         placeholder="Search subscriptions"
         placeholderTextColor={theme.colors.textSecondary}
       />
