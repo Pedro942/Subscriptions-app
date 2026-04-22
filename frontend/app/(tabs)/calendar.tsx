@@ -13,8 +13,10 @@ import {
 import { AppButton } from "../../src/components/ui/AppButton";
 import { AppCard } from "../../src/components/ui/AppCard";
 import { AppChip } from "../../src/components/ui/AppChip";
+import { AppSkeleton } from "../../src/components/ui/AppSkeleton";
 import { theme } from "../../src/constants/theme";
 import { useApp } from "../../src/context/AppContext";
+import { triggerHaptic } from "../../src/utils/haptics";
 
 type TimelineEvent = {
   id: string;
@@ -55,6 +57,7 @@ function formatCurrency(amount: number, currency: string) {
 export default function CalendarScreen() {
   const {
     calendarEvents,
+    loading,
     markRenewed,
     snoozeSubscription,
     skipSubscriptionCycle,
@@ -83,6 +86,7 @@ export default function CalendarScreen() {
     try {
       setBusyEventId(event.id);
       await markRenewed(event.id);
+      await triggerHaptic("success");
       setUndoAction({
         subscriptionId: event.id,
         previousDate: event.date,
@@ -100,6 +104,7 @@ export default function CalendarScreen() {
     try {
       setBusyEventId(event.id);
       await snoozeSubscription(event.id, days);
+      await triggerHaptic("selection");
       setUndoAction({
         subscriptionId: event.id,
         previousDate: event.date,
@@ -117,6 +122,7 @@ export default function CalendarScreen() {
     try {
       setBusyEventId(event.id);
       await skipSubscriptionCycle(event.id);
+      await triggerHaptic("selection");
       setUndoAction({
         subscriptionId: event.id,
         previousDate: event.date,
@@ -157,12 +163,35 @@ export default function CalendarScreen() {
       await updateSubscription(undoAction.subscriptionId, {
         renewal_date: undoAction.previousDate,
       });
+      await triggerHaptic("success");
       setUndoAction(null);
     } catch {
       Alert.alert("Undo failed", "Could not restore the previous renewal date.");
     } finally {
       setBusyEventId(null);
     }
+  }
+
+  if (loading && calendarEvents.length === 0) {
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <AppSkeleton height={26} width="52%" />
+          <AppSkeleton height={14} width="76%" style={styles.skeletonSubtitle} />
+          <AppSkeleton height={32} width={150} rounded={999} />
+          <AppCard style={styles.skeletonCard}>
+            <AppSkeleton height={14} width={120} />
+            <AppSkeleton height={12} width="88%" style={styles.skeletonGap} />
+            <AppSkeleton height={12} width="72%" style={styles.skeletonGap} />
+          </AppCard>
+          <AppCard style={styles.skeletonCard}>
+            <AppSkeleton height={14} width={120} />
+            <AppSkeleton height={12} width="84%" style={styles.skeletonGap} />
+            <AppSkeleton height={12} width="66%" style={styles.skeletonGap} />
+          </AppCard>
+        </ScrollView>
+      </View>
+    );
   }
 
   return (
@@ -332,6 +361,15 @@ const styles = StyleSheet.create({
   subtitle: {
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.xs,
+  },
+  skeletonSubtitle: {
+    marginTop: 2,
+  },
+  skeletonCard: {
+    padding: theme.spacing.md,
+  },
+  skeletonGap: {
+    marginTop: 8,
   },
   summaryChipText: {
     color: theme.colors.textSecondary,

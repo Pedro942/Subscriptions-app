@@ -18,12 +18,14 @@ import {
 import { AppButton } from "../../src/components/ui/AppButton";
 import { AppCard } from "../../src/components/ui/AppCard";
 import { AppChip } from "../../src/components/ui/AppChip";
+import { AppSkeleton } from "../../src/components/ui/AppSkeleton";
 import { theme } from "../../src/constants/theme";
 import {
   SharedMember,
   Subscription,
   useApp,
 } from "../../src/context/AppContext";
+import { triggerImpactHaptic, triggerNotificationHaptic } from "../../src/utils/haptics";
 
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -130,8 +132,10 @@ export default function HomeScreen() {
         trial_end_date: editTrialEnabled ? editTrialEndDate : null,
         shared_with: parseSharedWith(editSharedWithInput),
       });
+      await triggerNotificationHaptic("success");
       setEditingSubscription(null);
     } catch {
+      await triggerNotificationHaptic("error");
       Alert.alert("Update failed", "Could not update subscription.");
     }
   }
@@ -139,7 +143,9 @@ export default function HomeScreen() {
   async function handleMarkRenewed(id: string) {
     try {
       await markRenewed(id);
+      await triggerNotificationHaptic("success");
     } catch {
+      await triggerNotificationHaptic("error");
       Alert.alert("Failed", "Could not mark subscription as renewed.");
     }
   }
@@ -204,8 +210,17 @@ export default function HomeScreen() {
 
   if (loading) {
     return (
-      <View style={styles.loadingState}>
-        <ActivityIndicator size="large" color={theme.colors.accent} />
+      <View style={styles.container}>
+        <AppSkeleton style={styles.skeletonHero} />
+        <View style={styles.skeletonInsightRow}>
+          <AppSkeleton style={styles.skeletonInsight} />
+          <AppSkeleton style={styles.skeletonInsight} />
+        </View>
+        <AppSkeleton style={styles.skeletonSearch} />
+        <AppSkeleton style={styles.skeletonChipRow} />
+        <AppSkeleton style={styles.skeletonItem} />
+        <AppSkeleton style={styles.skeletonItem} />
+        <AppSkeleton style={styles.skeletonItem} />
       </View>
     );
   }
@@ -388,7 +403,10 @@ export default function HomeScreen() {
                   }
                   variant="ghost"
                   style={styles.iconActionButton}
-                  onPress={() => void deleteSubscription(item.id)}
+                  onPress={async () => {
+                    await triggerImpactHaptic("light");
+                    await deleteSubscription(item.id);
+                  }}
                 />
               </View>
             </View>
@@ -477,7 +495,10 @@ export default function HomeScreen() {
                 label="Cancel"
                 variant="secondary"
                 style={styles.secondaryButton}
-                onPress={() => setEditingSubscription(null)}
+                onPress={async () => {
+                  await triggerImpactHaptic("light");
+                  setEditingSubscription(null);
+                }}
               />
               <AppButton
                 label="Save"
@@ -820,5 +841,35 @@ const styles = StyleSheet.create({
   chipPressed: {
     opacity: 0.9,
     transform: [{ scale: 0.97 }],
+  },
+  skeletonHero: {
+    height: 148,
+    borderRadius: theme.radius.xl,
+    marginBottom: theme.spacing.md,
+  },
+  skeletonInsightRow: {
+    flexDirection: "row",
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+  },
+  skeletonInsight: {
+    flex: 1,
+    height: 86,
+    borderRadius: theme.radius.lg,
+  },
+  skeletonSearch: {
+    height: 44,
+    borderRadius: theme.radius.md,
+    marginBottom: theme.spacing.sm,
+  },
+  skeletonChipRow: {
+    height: 32,
+    borderRadius: theme.radius.md,
+    marginBottom: theme.spacing.md,
+  },
+  skeletonItem: {
+    height: 94,
+    borderRadius: theme.radius.lg,
+    marginBottom: theme.spacing.sm,
   },
 });

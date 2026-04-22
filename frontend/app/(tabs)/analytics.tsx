@@ -1,8 +1,11 @@
 import { Link } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
+import { AppCard } from "../../src/components/ui/AppCard";
+import { AppSkeleton } from "../../src/components/ui/AppSkeleton";
 import { theme } from "../../src/constants/theme";
 import { useApp } from "../../src/context/AppContext";
+import { triggerSelectionHaptic } from "../../src/utils/haptics";
 
 function formatCurrency(amount: number, currency: string) {
   return new Intl.NumberFormat(undefined, {
@@ -13,7 +16,7 @@ function formatCurrency(amount: number, currency: string) {
 }
 
 export default function AnalyticsScreen() {
-  const { analytics, preferredCurrency, fxRates, budgetConfig } = useApp();
+  const { loading, analytics, preferredCurrency, fxRates } = useApp();
 
   const categoryEntries = Object.entries(
     analytics?.category_breakdown ?? {},
@@ -27,6 +30,34 @@ export default function AnalyticsScreen() {
   const trialConversions = analytics?.trial_conversions ?? [];
   const insights = analytics?.insights ?? [];
   const budgetStatus = analytics?.budget_status;
+
+  if (loading && !analytics) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <AppCard variant="accent" padding="lg">
+          <AppSkeleton height={12} width={120} />
+          <AppSkeleton height={30} width={220} style={styles.skeletonGap} />
+          <AppSkeleton height={14} width={180} style={styles.skeletonGap} />
+        </AppCard>
+        <View style={styles.summaryRow}>
+          <AppCard style={styles.summaryCard}>
+            <AppSkeleton height={12} width={70} />
+            <AppSkeleton height={22} width={110} style={styles.skeletonGap} />
+          </AppCard>
+          <AppCard style={styles.summaryCard}>
+            <AppSkeleton height={12} width={70} />
+            <AppSkeleton height={22} width={110} style={styles.skeletonGap} />
+          </AppCard>
+        </View>
+        <AppCard>
+          <AppSkeleton height={14} width={150} />
+          <AppSkeleton height={10} width={"100%"} style={styles.skeletonGap} />
+          <AppSkeleton height={10} width={"86%"} style={styles.skeletonGap} />
+          <AppSkeleton height={10} width={"74%"} style={styles.skeletonGap} />
+        </AppCard>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -97,6 +128,9 @@ export default function AnalyticsScreen() {
                   styles.inlineCta,
                   pressed && styles.buttonPressed,
                 ]}
+                onPress={() => {
+                  void triggerSelectionHaptic();
+                }}
               >
                 <Text style={styles.inlineCtaText}>Add subscription</Text>
               </Pressable>
@@ -481,6 +515,9 @@ const styles = StyleSheet.create({
   projectionText: {
     color: theme.colors.textSecondary,
     lineHeight: 20,
+  },
+  skeletonGap: {
+    marginTop: 8,
   },
   buttonPressed: {
     opacity: 0.88,
