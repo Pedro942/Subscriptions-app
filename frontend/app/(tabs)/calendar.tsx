@@ -6,6 +6,7 @@ import { useApp } from "../../src/context/AppContext";
 
 function groupEvents(
   events: Array<{
+    id: string;
     date: string;
     name: string;
     type: "renewal" | "trial_end";
