@@ -10,6 +10,9 @@ import {
   View,
 } from "react-native";
 
+import { AppButton } from "../../src/components/ui/AppButton";
+import { AppCard } from "../../src/components/ui/AppCard";
+import { AppChip } from "../../src/components/ui/AppChip";
 import { theme } from "../../src/constants/theme";
 import { useApp } from "../../src/context/AppContext";
 
@@ -169,19 +172,21 @@ export default function CalendarScreen() {
         <Text style={styles.subtitle}>
           Timeline view for renewals and trial conversions.
         </Text>
-        <View style={styles.summaryChip}>
-          <Text style={styles.summaryChipText}>{upcomingCount} upcoming events</Text>
-        </View>
+        <AppChip
+          label={`${upcomingCount} upcoming events`}
+          variant="info"
+          textStyle={styles.summaryChipText}
+        />
         {dates.length === 0 ? (
-          <View style={styles.emptyCard}>
+          <AppCard style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>No upcoming events</Text>
             <Text style={styles.emptyText}>
               Add subscriptions and trial dates to populate your calendar.
             </Text>
-          </View>
+          </AppCard>
         ) : (
           dates.map((dateValue) => (
-            <View key={dateValue} style={styles.dayCard}>
+            <AppCard key={dateValue} style={styles.dayCard}>
               <Text style={styles.dayTitle}>{dateValue}</Text>
               {grouped[dateValue].map((event, index) => (
                 <View key={`${event.name}-${index}`} style={styles.eventRow}>
@@ -194,47 +199,38 @@ export default function CalendarScreen() {
                   </View>
                   {event.type === "renewal" ? (
                     <View style={styles.actionRow}>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.actionButton,
-                          styles.actionSuccess,
-                          pressed && styles.actionPressed,
-                          busyEventId === event.id && styles.actionDisabled,
-                        ]}
-                        disabled={busyEventId === event.id}
+                      <AppChip
+                        label="Mark renewed"
+                        variant="success"
                         onPress={() => void handleMarkRenewed(event)}
-                      >
-                        <Text style={styles.actionText}>Mark renewed</Text>
-                      </Pressable>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.actionButton,
-                          styles.actionInfo,
-                          pressed && styles.actionPressed,
-                          busyEventId === event.id && styles.actionDisabled,
-                        ]}
+                        pressedStyle={styles.actionPressed}
                         disabled={busyEventId === event.id}
+                        style={styles.actionButton}
+                        textStyle={styles.actionText}
+                      />
+                      <AppChip
+                        label="Snooze..."
+                        variant="info"
                         onPress={() => openSnoozeModal(event)}
-                      >
-                        <Text style={styles.actionText}>Snooze...</Text>
-                      </Pressable>
-                      <Pressable
-                        style={({ pressed }) => [
-                          styles.actionButton,
-                          styles.actionWarning,
-                          pressed && styles.actionPressed,
-                          busyEventId === event.id && styles.actionDisabled,
-                        ]}
+                        pressedStyle={styles.actionPressed}
                         disabled={busyEventId === event.id}
+                        style={styles.actionButton}
+                        textStyle={styles.actionText}
+                      />
+                      <AppChip
+                        label="Skip cycle"
+                        variant="warning"
                         onPress={() => void handleSkipCycle(event)}
-                      >
-                        <Text style={styles.actionText}>Skip cycle</Text>
-                      </Pressable>
+                        pressedStyle={styles.actionPressed}
+                        disabled={busyEventId === event.id}
+                        style={styles.actionButton}
+                        textStyle={styles.actionText}
+                      />
                     </View>
                   ) : null}
                 </View>
               ))}
-            </View>
+            </AppCard>
           ))
         )}
       </ScrollView>
@@ -247,23 +243,22 @@ export default function CalendarScreen() {
               {undoAction.subscriptionName} {undoAction.actionLabel}. Undo?
             </Text>
           </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.undoButton,
-              pressed && styles.actionPressed,
-              busyEventId === undoAction.subscriptionId && styles.actionDisabled,
-            ]}
-            disabled={busyEventId === undoAction.subscriptionId}
+          <AppButton
+            label="Undo"
+            variant="secondary"
+            size="sm"
             onPress={() => void handleUndoLastAction()}
-          >
-            <Text style={styles.undoButtonText}>Undo</Text>
-          </Pressable>
+            pressedStyle={styles.actionPressed}
+            disabled={busyEventId === undoAction.subscriptionId}
+            style={styles.undoButton}
+            textStyle={styles.undoButtonText}
+          />
         </View>
       ) : null}
 
       <Modal visible={Boolean(snoozeEvent)} transparent animationType="fade">
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
+          <AppCard style={styles.modalCard}>
             <Text style={styles.modalTitle}>Snooze renewal</Text>
             <Text style={styles.modalSubtitle}>
               {snoozeEvent?.name ?? "Subscription"}
@@ -271,20 +266,18 @@ export default function CalendarScreen() {
             <Text style={styles.modalLabel}>Choose delay</Text>
             <View style={styles.presetRow}>
               {snoozePresets.map((days) => (
-                <Pressable
+                <AppChip
                   key={days}
-                  style={({ pressed }) => [
-                    styles.presetChip,
-                    selectedSnoozeDays === days && styles.presetChipActive,
-                    pressed && styles.actionPressed,
-                  ]}
+                  label={`${days}d`}
+                  selected={selectedSnoozeDays === days}
                   onPress={() => {
                     setSelectedSnoozeDays(days);
                     setCustomSnoozeDays("");
                   }}
-                >
-                  <Text style={styles.presetChipText}>{days}d</Text>
-                </Pressable>
+                  pressedStyle={styles.actionPressed}
+                  textStyle={styles.presetChipText}
+                  style={styles.presetChip}
+                />
               ))}
             </View>
             <TextInput
@@ -296,20 +289,24 @@ export default function CalendarScreen() {
               placeholderTextColor={theme.colors.textSecondary}
             />
             <View style={styles.modalActions}>
-              <Pressable
-                style={({ pressed }) => [styles.cancelButton, pressed && styles.actionPressed]}
+              <AppButton
+                label="Cancel"
+                variant="ghost"
                 onPress={() => setSnoozeEvent(null)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [styles.confirmButton, pressed && styles.actionPressed]}
+                pressedStyle={styles.actionPressed}
+                style={styles.cancelButton}
+                textStyle={styles.cancelButtonText}
+              />
+              <AppButton
+                label="Apply"
+                variant="primary"
                 onPress={() => void applySnoozeSelection()}
-              >
-                <Text style={styles.confirmButtonText}>Apply</Text>
-              </Pressable>
+                pressedStyle={styles.actionPressed}
+                style={styles.confirmButton}
+                textStyle={styles.confirmButtonText}
+              />
             </View>
-          </View>
+          </AppCard>
         </View>
       </Modal>
     </View>
@@ -336,27 +333,13 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.xs,
   },
-  summaryChip: {
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: theme.colors.infoBg,
-  },
   summaryChipText: {
-    color: theme.colors.textPrimary,
+    color: theme.colors.textSecondary,
     fontSize: 12,
-    fontWeight: "700",
+    fontWeight: "600",
   },
   emptyCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surfaceElevated,
     padding: theme.spacing.lg,
-    ...theme.effects.softShadow,
   },
   emptyTitle: {
     color: theme.colors.textPrimary,
@@ -367,13 +350,8 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
   },
   dayCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
-    borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surfaceElevated,
     padding: theme.spacing.md,
     gap: 8,
-    ...theme.effects.softShadow,
   },
   dayTitle: {
     color: theme.colors.textPrimary,
@@ -403,26 +381,10 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   actionButton: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 999,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  actionSuccess: {
-    backgroundColor: theme.colors.successBg,
-    borderColor: theme.colors.success,
-  },
-  actionInfo: {
-    backgroundColor: theme.colors.infoBg,
-    borderColor: theme.colors.accent,
-  },
-  actionWarning: {
-    backgroundColor: theme.colors.warningBg,
-    borderColor: theme.colors.warning,
-  },
   actionText: {
-    color: theme.colors.textPrimary,
     fontSize: 12,
     fontWeight: "600",
   },
@@ -463,15 +425,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   undoButton: {
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
-    borderRadius: theme.radius.md,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: theme.colors.accentSoft,
   },
   undoButtonText: {
-    color: theme.colors.textPrimary,
     fontWeight: "700",
     fontSize: 12,
   },
@@ -482,13 +439,8 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   modalCard: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
-    borderRadius: theme.radius.xl,
-    backgroundColor: theme.colors.surface,
     padding: theme.spacing.md,
     gap: theme.spacing.sm,
-    ...theme.effects.cardShadow,
   },
   modalTitle: {
     color: theme.colors.textPrimary,
@@ -509,19 +461,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   presetChip: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 999,
     paddingVertical: 7,
     paddingHorizontal: 12,
-    backgroundColor: theme.colors.chipDefaultBg,
-  },
-  presetChipActive: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.chipActiveBg,
   },
   presetChipText: {
-    color: theme.colors.textPrimary,
     fontWeight: "600",
     fontSize: 12,
   },
@@ -540,27 +483,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   cancelButton: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
-    borderRadius: theme.radius.md,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: theme.colors.surfaceSoft,
   },
   cancelButtonText: {
-    color: theme.colors.textSecondary,
     fontWeight: "600",
   },
   confirmButton: {
-    borderWidth: 1,
-    borderColor: theme.colors.accent,
-    borderRadius: theme.radius.md,
     paddingHorizontal: 14,
     paddingVertical: 9,
-    backgroundColor: theme.colors.accent,
   },
   confirmButtonText: {
-    color: theme.colors.textPrimary,
     fontWeight: "700",
   },
 });

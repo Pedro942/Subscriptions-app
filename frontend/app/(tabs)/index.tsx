@@ -15,6 +15,9 @@ import {
   View,
 } from "react-native";
 
+import { AppButton } from "../../src/components/ui/AppButton";
+import { AppCard } from "../../src/components/ui/AppCard";
+import { AppChip } from "../../src/components/ui/AppChip";
 import { theme } from "../../src/constants/theme";
 import {
   SharedMember,
@@ -155,28 +158,18 @@ export default function HomeScreen() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.filterRow}
       >
-        <Pressable
-          style={({ pressed }) => [
-            styles.filterChip,
-            !categoryFilter && styles.filterChipActive,
-            pressed && styles.chipPressed,
-          ]}
+        <AppChip
+          label="All categories"
+          active={!categoryFilter}
           onPress={() => setCategoryFilter(null)}
-        >
-          <Text style={styles.filterText}>All categories</Text>
-        </Pressable>
+        />
         {categories.map((category) => (
-          <Pressable
+          <AppChip
             key={category}
-            style={({ pressed }) => [
-              styles.filterChip,
-              categoryFilter === category && styles.filterChipActive,
-              pressed && styles.chipPressed,
-            ]}
+            label={category}
+            active={categoryFilter === category}
             onPress={() => setCategoryFilter(category)}
-          >
-            <Text style={styles.filterText}>{category}</Text>
-          </Pressable>
+          />
         ))}
       </ScrollView>
       <View style={styles.sortRow}>
@@ -186,36 +179,24 @@ export default function HomeScreen() {
           contentContainerStyle={styles.sortChips}
         >
           {(["renewal_date", "amount", "name"] as const).map((value) => (
-            <Pressable
+            <AppChip
               key={value}
-              style={({ pressed }) => [
-                styles.sortChip,
-                sortBy === value && styles.sortChipActive,
-                pressed && styles.chipPressed,
-              ]}
-              onPress={() => setSortBy(value)}
-            >
-              <Text style={styles.sortChipText}>
-                {value === "renewal_date"
+              label={
+                value === "renewal_date"
                   ? "Renewal"
                   : value === "amount"
                     ? "Amount"
-                    : "Name"}
-              </Text>
-            </Pressable>
+                    : "Name"
+              }
+              active={sortBy === value}
+              onPress={() => setSortBy(value)}
+            />
           ))}
-          <Pressable
-            style={({ pressed }) => [
-              styles.sortChip,
-              styles.sortChipOrder,
-              pressed && styles.chipPressed,
-            ]}
+          <AppChip
+            label={sortOrder === "asc" ? "Asc" : "Desc"}
+            variant="warning"
             onPress={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-          >
-            <Text style={styles.sortChipText}>
-              {sortOrder === "asc" ? "Asc" : "Desc"}
-            </Text>
-          </Pressable>
+          />
         </ScrollView>
       </View>
     </View>
@@ -231,7 +212,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.heroCard}>
+      <AppCard variant="accent" padding="lg" style={styles.heroCard}>
         <Text style={styles.heroLabel}>Monthly spend</Text>
         <Text style={styles.heroValue}>
           {formatCurrency(analytics?.monthly_total ?? 0, preferredCurrency)}
@@ -241,41 +222,45 @@ export default function HomeScreen() {
           {formatCurrency(analytics?.yearly_total ?? 0, preferredCurrency)}
         </Text>
         <View style={styles.heroMetaRow}>
-          <View style={styles.heroMetaChip}>
-            <Text style={styles.heroMetaText}>{subscriptions.length} tracked</Text>
-          </View>
-          <View style={styles.heroMetaChip}>
-            <Text style={styles.heroMetaText}>
-              {analytics?.upcoming_renewals_count ?? 0} upcoming
-            </Text>
-          </View>
+          <AppChip
+            label={`${subscriptions.length} tracked`}
+            variant="default"
+            style={styles.heroMetaChip}
+            textStyle={styles.heroMetaText}
+          />
+          <AppChip
+            label={`${analytics?.upcoming_renewals_count ?? 0} upcoming`}
+            variant="default"
+            style={styles.heroMetaChip}
+            textStyle={styles.heroMetaText}
+          />
         </View>
-      </View>
+      </AppCard>
 
       <View style={styles.insightRow}>
-        <View style={styles.insightCard}>
+        <AppCard style={styles.insightCard}>
           <Text style={styles.insightLabel}>Avg / subscription</Text>
           <Text style={styles.insightValue}>
             {formatCurrency(monthlyAverage, preferredCurrency)}
           </Text>
-        </View>
-        <View style={styles.insightCard}>
+        </AppCard>
+        <AppCard style={styles.insightCard}>
           <Text style={styles.insightLabel}>Top category</Text>
           <Text style={styles.insightValue}>
             {analytics?.top_category?.name ?? "—"}
           </Text>
-        </View>
+        </AppCard>
       </View>
 
       {analytics?.trial_conversions?.length ? (
-        <View style={styles.trialCard}>
+        <AppCard variant="warning" style={styles.trialCard}>
           <Text style={styles.trialCardTitle}>Trial conversions soon</Text>
           {analytics.trial_conversions.slice(0, 3).map((item) => (
             <Text key={item.id} style={styles.trialCardText}>
               {item.name} ends on {item.trial_end_date}
             </Text>
           ))}
-        </View>
+        </AppCard>
       ) : null}
 
       {needsAuthForMoreSubscriptions ? (
@@ -308,20 +293,18 @@ export default function HomeScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={searchSortBar}
         ListEmptyComponent={
-          <View style={styles.emptyCard}>
+          <AppCard style={styles.emptyCard}>
             <Text style={styles.emptyTitle}>No subscriptions yet</Text>
             <Text style={styles.emptyText}>
               Use the Add tab to track Netflix, Spotify, and more.
             </Text>
             <Link href="/(tabs)/add" asChild>
-              <Pressable style={({ pressed }) => [styles.emptyCta, pressed && styles.buttonPressed]}>
-                <Text style={styles.emptyCtaText}>Add your first subscription</Text>
-              </Pressable>
+              <AppButton label="Add your first subscription" style={styles.emptyCta} />
             </Link>
-          </View>
+          </AppCard>
         }
         renderItem={({ item }) => (
-          <View style={styles.itemCard}>
+          <AppCard style={styles.itemCard}>
             <View style={styles.itemLeading}>
               {item.platform_logo_url ? (
                 <Image
@@ -371,48 +354,45 @@ export default function HomeScreen() {
                 {item.billing_cycle}
               </Text>
               <View style={styles.itemActionRow}>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.iconActionButton,
-                    pressed && styles.buttonPressed,
-                  ]}
+                <AppButton
+                  icon={
+                    <FontAwesome5
+                      name="check-circle"
+                      size={16}
+                      color={theme.colors.success}
+                    />
+                  }
+                  variant="ghost"
+                  style={styles.iconActionButton}
                   onPress={() => void handleMarkRenewed(item.id)}
-                >
-                  <FontAwesome5
-                    name="check-circle"
-                    size={16}
-                    color={theme.colors.success}
-                  />
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.iconActionButton,
-                    pressed && styles.buttonPressed,
-                  ]}
+                />
+                <AppButton
+                  icon={
+                    <FontAwesome5
+                      name="edit"
+                      size={16}
+                      color={theme.colors.textSecondary}
+                    />
+                  }
+                  variant="ghost"
+                  style={styles.iconActionButton}
                   onPress={() => openEditModal(item)}
-                >
-                  <FontAwesome5
-                    name="edit"
-                    size={16}
-                    color={theme.colors.textSecondary}
-                  />
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.iconActionButton,
-                    pressed && styles.buttonPressed,
-                  ]}
+                />
+                <AppButton
+                  icon={
+                    <FontAwesome5
+                      name="trash"
+                      size={16}
+                      color={theme.colors.textSecondary}
+                    />
+                  }
+                  variant="ghost"
+                  style={styles.iconActionButton}
                   onPress={() => void deleteSubscription(item.id)}
-                >
-                  <FontAwesome5
-                    name="trash"
-                    size={16}
-                    color={theme.colors.textSecondary}
-                  />
-                </Pressable>
+                />
               </View>
             </View>
-          </View>
+          </AppCard>
         )}
       />
 
@@ -493,24 +473,17 @@ export default function HomeScreen() {
               placeholderTextColor={theme.colors.textSecondary}
             />
             <View style={styles.modalActions}>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  pressed && styles.buttonPressed,
-                ]}
+              <AppButton
+                label="Cancel"
+                variant="secondary"
+                style={styles.secondaryButton}
                 onPress={() => setEditingSubscription(null)}
-              >
-                <Text style={styles.secondaryButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.buttonPressed,
-                ]}
+              />
+              <AppButton
+                label="Save"
+                style={styles.primaryButton}
                 onPress={() => void submitEdit()}
-              >
-                <Text style={styles.primaryButtonText}>Save</Text>
-              </Pressable>
+              />
             </View>
           </View>
         </View>
@@ -532,12 +505,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   heroCard: {
-    backgroundColor: theme.colors.surfaceAccent,
-    borderRadius: theme.radius.xl,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.accentAlt,
-    ...theme.effects.cardShadow,
     marginBottom: theme.spacing.md,
   },
   heroLabel: {
@@ -560,12 +527,8 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md,
   },
   heroMetaChip: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
-    borderRadius: 999,
+    borderColor: "rgba(255,255,255,0.25)",
     backgroundColor: "rgba(255,255,255,0.08)",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
   },
   heroMetaText: {
     color: theme.colors.textPrimary,
@@ -579,12 +542,6 @@ const styles = StyleSheet.create({
   },
   insightCard: {
     flex: 1,
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.md,
-    ...theme.effects.softShadow,
   },
   insightLabel: {
     color: theme.colors.textSecondary,
@@ -597,11 +554,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   trialCard: {
-    borderRadius: theme.radius.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.warning,
-    backgroundColor: theme.colors.warningBg,
-    padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
   trialCardTitle: {
@@ -665,55 +617,21 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 2,
   },
-  filterChip: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: theme.colors.chipDefaultBg,
-  },
-  filterChipActive: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.chipActiveBg,
-  },
-  filterText: {
-    color: theme.colors.textPrimary,
-    fontSize: 12,
-  },
+  filterChip: {},
+  filterChipActive: {},
+  filterText: {},
   sortRow: {
     flexDirection: "row",
   },
   sortChips: {
     gap: 8,
   },
-  sortChip: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: theme.colors.chipDefaultBg,
-  },
-  sortChipActive: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.chipActiveBg,
-  },
-  sortChipOrder: {
-    borderColor: theme.colors.warning,
-  },
-  sortChipText: {
-    color: theme.colors.textPrimary,
-    fontSize: 12,
-    fontWeight: "600",
-  },
+  sortChip: {},
+  sortChipActive: {},
+  sortChipOrder: {},
+  sortChipText: {},
   emptyCard: {
     marginTop: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
-    borderColor: theme.colors.border,
-    borderWidth: 1,
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
     alignItems: "flex-start",
     gap: 8,
   },
@@ -729,26 +647,13 @@ const styles = StyleSheet.create({
   },
   emptyCta: {
     marginTop: 6,
-    borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.accent,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
   },
-  emptyCtaText: {
-    color: theme.colors.textPrimary,
-    fontWeight: "700",
-  },
+  emptyCtaText: {},
   itemCard: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderRadius: theme.radius.lg,
-    borderColor: theme.colors.border,
-    borderWidth: 1,
-    backgroundColor: theme.colors.surfaceElevated,
-    padding: theme.spacing.md,
     gap: theme.spacing.sm,
-    ...theme.effects.softShadow,
   },
   itemLeading: {
     flexDirection: "row",
@@ -817,14 +722,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   iconActionButton: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.chipDefaultBg,
     width: 30,
     height: 30,
-    alignItems: "center",
-    justifyContent: "center",
+    paddingHorizontal: 0,
+    paddingVertical: 0,
   },
   itemPrice: {
     color: theme.colors.textPrimary,
@@ -908,27 +809,10 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     gap: 8,
   },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: theme.radius.md,
-    paddingVertical: 9,
-    paddingHorizontal: 14,
-  },
-  secondaryButtonText: {
-    color: theme.colors.textSecondary,
-    fontWeight: "600",
-  },
-  primaryButton: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: theme.radius.md,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-  },
-  primaryButtonText: {
-    color: theme.colors.textPrimary,
-    fontWeight: "700",
-  },
+  secondaryButton: {},
+  secondaryButtonText: {},
+  primaryButton: {},
+  primaryButtonText: {},
   buttonPressed: {
     opacity: 0.86,
     transform: [{ scale: 0.98 }],

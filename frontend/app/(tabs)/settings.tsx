@@ -3,7 +3,6 @@ import * as LocalAuthentication from "expo-local-authentication";
 import { Link } from "expo-router";
 import {
   Alert,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +12,9 @@ import {
 import { useMemo, useState } from "react";
 
 import { currencies, theme } from "../../src/constants/theme";
+import { AppButton } from "../../src/components/ui/AppButton";
+import { AppCard } from "../../src/components/ui/AppCard";
+import { AppChip } from "../../src/components/ui/AppChip";
 import { useApp } from "../../src/context/AppContext";
 
 function parseCategoryLimits(input: string): Record<string, number> {
@@ -209,7 +211,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Currency</Text>
         <Text style={styles.cardSubtitle}>
           Default is EUR, but you can switch anytime.
@@ -218,24 +220,17 @@ export default function SettingsScreen() {
           {currencies.map((currency) => {
             const active = preferredCurrency === currency;
             return (
-              <Pressable
+              <AppChip
                 key={currency}
                 onPress={() => void handleCurrencyChange(currency)}
-                style={({ pressed }) => [
-                  styles.currencyChip,
-                  active && styles.currencyChipActive,
-                  pressed && styles.buttonPressed,
+                active={active}
+                textStyle={[
+                  styles.currencyText,
+                  active && styles.currencyTextActive,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.currencyText,
-                    active && styles.currencyTextActive,
-                  ]}
-                >
-                  {currency}
-                </Text>
-              </Pressable>
+                {currency}
+              </AppChip>
             );
           })}
         </View>
@@ -245,48 +240,34 @@ export default function SettingsScreen() {
             {fxRates.fetched_at ? `· Updated ${fxRates.fetched_at}` : ""}
           </Text>
         ) : null}
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Renewal reminders</Text>
         <Text style={styles.cardSubtitle}>
           Push notifications before renewal dates are enabled by requesting
           permissions.
         </Text>
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={() => void handleNotifications()}
-        >
-          <Text style={styles.primaryButtonText}>
-            {notificationStatus === "granted"
-              ? "Notifications enabled"
-              : "Enable notifications"}
-          </Text>
-        </Pressable>
+        <AppButton onPress={() => void handleNotifications()}>
+          {notificationStatus === "granted"
+            ? "Notifications enabled"
+            : "Enable notifications"}
+        </AppButton>
         <View style={styles.row}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.toggleChip,
-              remindersEnabled && styles.toggleChipActive,
-              pressed && styles.buttonPressed,
-            ]}
+          <AppChip
             onPress={() => void handleToggleReminders(true)}
+            active={remindersEnabled}
+            textStyle={styles.toggleChipText}
           >
-            <Text style={styles.toggleChipText}>On</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.toggleChip,
-              !remindersEnabled && styles.toggleChipActive,
-              pressed && styles.buttonPressed,
-            ]}
+            On
+          </AppChip>
+          <AppChip
             onPress={() => void handleToggleReminders(false)}
+            active={!remindersEnabled}
+            textStyle={styles.toggleChipText}
           >
-            <Text style={styles.toggleChipText}>Off</Text>
-          </Pressable>
+            Off
+          </AppChip>
         </View>
         <Text style={styles.cardSubtitle}>
           Notify me this many days before renewal:
@@ -295,55 +276,42 @@ export default function SettingsScreen() {
           {[1, 3, 7].map((days) => {
             const active = reminderLeadDays === days;
             return (
-              <Pressable
+              <AppChip
                 key={days}
                 onPress={() => void handleLeadDays(days)}
-                style={({ pressed }) => [
-                  styles.currencyChip,
-                  active && styles.currencyChipActive,
-                  pressed && styles.buttonPressed,
+                active={active}
+                textStyle={[
+                  styles.currencyText,
+                  active && styles.currencyTextActive,
                 ]}
               >
-                <Text
-                  style={[
-                    styles.currencyText,
-                    active && styles.currencyTextActive,
-                  ]}
-                >
-                  {days}d
-                </Text>
-              </Pressable>
+                {days}d
+              </AppChip>
             );
           })}
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Quiet hours</Text>
         <Text style={styles.cardSubtitle}>
           Suppress reminders during selected hours.
         </Text>
         <View style={styles.row}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.toggleChip,
-              quietHoursEnabled && styles.toggleChipActive,
-              pressed && styles.buttonPressed,
-            ]}
+          <AppChip
             onPress={() => void handleQuietHours(true)}
+            active={quietHoursEnabled}
+            textStyle={styles.toggleChipText}
           >
-            <Text style={styles.toggleChipText}>Enabled</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.toggleChip,
-              !quietHoursEnabled && styles.toggleChipActive,
-              pressed && styles.buttonPressed,
-            ]}
+            Enabled
+          </AppChip>
+          <AppChip
             onPress={() => void handleQuietHours(false)}
+            active={!quietHoursEnabled}
+            textStyle={styles.toggleChipText}
           >
-            <Text style={styles.toggleChipText}>Disabled</Text>
-          </Pressable>
+            Disabled
+          </AppChip>
         </View>
         <View style={styles.currencyGrid}>
           {[
@@ -354,30 +322,23 @@ export default function SettingsScreen() {
             const active =
               quietHoursStart === slot.start && quietHoursEnd === slot.end;
             return (
-              <Pressable
+              <AppChip
                 key={slot.label}
-                style={({ pressed }) => [
-                  styles.currencyChip,
-                  active && styles.currencyChipActive,
-                  pressed && styles.buttonPressed,
-                ]}
                 onPress={() => void handleQuietWindow(slot.start, slot.end)}
+                active={active}
+                textStyle={[
+                  styles.currencyText,
+                  active && styles.currencyTextActive,
+                ]}
               >
-                <Text
-                  style={[
-                    styles.currencyText,
-                    active && styles.currencyTextActive,
-                  ]}
-                >
-                  {slot.label}
-                </Text>
-              </Pressable>
+                {slot.label}
+              </AppChip>
             );
           })}
         </View>
-      </View>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Budgets</Text>
         <Text style={styles.cardSubtitle}>
           Set monthly and category limits using format: Video Streaming:60,
@@ -398,42 +359,30 @@ export default function SettingsScreen() {
           placeholder="Category limits"
           placeholderTextColor={theme.colors.textSecondary}
         />
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={() => void handleSaveBudget()}
-        >
-          <Text style={styles.primaryButtonText}>Save budget</Text>
-        </Pressable>
-      </View>
+        <AppButton onPress={() => void handleSaveBudget()}>Save budget</AppButton>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Data export/import</Text>
         <Text style={styles.cardSubtitle}>
           Export to clipboard and import from JSON payload. Keeps your data
           portable.
         </Text>
         <View style={styles.row}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.buttonPressed,
-            ]}
+          <AppButton
+            variant="secondary"
             onPress={() => void handleExportJson()}
+            style={styles.secondaryActionButton}
           >
-            <Text style={styles.secondaryButtonText}>Export JSON</Text>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.secondaryButton,
-              pressed && styles.buttonPressed,
-            ]}
+            Export JSON
+          </AppButton>
+          <AppButton
+            variant="secondary"
             onPress={() => void handleExportCsv()}
+            style={styles.secondaryActionButton}
           >
-            <Text style={styles.secondaryButtonText}>Export CSV</Text>
-          </Pressable>
+            Export CSV
+          </AppButton>
         </View>
         <TextInput
           style={[styles.input, styles.importInput]}
@@ -443,47 +392,27 @@ export default function SettingsScreen() {
           placeholder='Paste JSON export payload here {"subscriptions":[...]}'
           placeholderTextColor={theme.colors.textSecondary}
         />
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={() => void handleImportJson()}
-        >
-          <Text style={styles.primaryButtonText}>Import JSON</Text>
-        </Pressable>
-      </View>
+        <AppButton onPress={() => void handleImportJson()}>Import JSON</AppButton>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Security</Text>
         <Text style={styles.cardSubtitle}>
           Enable app lock and unlock using local biometrics.
         </Text>
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryButton,
-            pressed && styles.buttonPressed,
-          ]}
-          onPress={() => void handleBiometricToggle()}
-        >
-          <Text style={styles.primaryButtonText}>{biometricLabel}</Text>
-        </Pressable>
-      </View>
+        <AppButton onPress={() => void handleBiometricToggle()}>
+          {biometricLabel}
+        </AppButton>
+      </AppCard>
 
-      <View style={styles.card}>
+      <AppCard>
         <Text style={styles.cardTitle}>Account</Text>
         {token ? (
           <>
             <Text style={styles.cardSubtitle}>Logged in as {userEmail}</Text>
-            <Pressable
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                pressed && styles.buttonPressed,
-              ]}
-              onPress={() => void logout()}
-            >
-              <Text style={styles.secondaryButtonText}>Logout</Text>
-            </Pressable>
+            <AppButton variant="secondary" onPress={() => void logout()}>
+              Logout
+            </AppButton>
           </>
         ) : (
           <>
@@ -492,18 +421,11 @@ export default function SettingsScreen() {
               your data synced.
             </Text>
             <Link href="/auth" asChild>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  pressed && styles.buttonPressed,
-                ]}
-              >
-                <Text style={styles.primaryButtonText}>Login / Register</Text>
-              </Pressable>
+              <AppButton>Login / Register</AppButton>
             </Link>
           </>
         )}
-      </View>
+      </AppCard>
     </ScrollView>
   );
 }
@@ -517,14 +439,6 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     gap: theme.spacing.md,
     paddingBottom: 36,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
-    borderRadius: theme.radius.xl,
-    backgroundColor: theme.colors.surfaceElevated,
-    padding: theme.spacing.md,
-    ...theme.effects.softShadow,
   },
   cardTitle: {
     color: theme.colors.textPrimary,
@@ -552,36 +466,12 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
-  currencyChip: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 11,
-    backgroundColor: theme.colors.chipDefaultBg,
-  },
-  currencyChipActive: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.chipActiveBg,
-  },
   currencyText: {
     color: theme.colors.textSecondary,
     fontWeight: "600",
   },
   currencyTextActive: {
     color: theme.colors.textPrimary,
-  },
-  toggleChip: {
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    backgroundColor: theme.colors.chipDefaultBg,
-  },
-  toggleChipActive: {
-    borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.chipActiveBg,
   },
   toggleChipText: {
     color: theme.colors.textPrimary,
@@ -601,32 +491,7 @@ const styles = StyleSheet.create({
     minHeight: 120,
     textAlignVertical: "top",
   },
-  primaryButton: {
-    backgroundColor: theme.colors.accent,
-    borderRadius: theme.radius.lg,
-    paddingVertical: 10,
-    alignItems: "center",
-    ...theme.effects.softShadow,
-  },
-  primaryButtonText: {
-    color: theme.colors.textPrimary,
-    fontWeight: "700",
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
-    borderRadius: theme.radius.lg,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    alignItems: "center",
-    backgroundColor: theme.colors.surfaceSoft,
-  },
-  secondaryButtonText: {
-    color: theme.colors.textSecondary,
-    fontWeight: "600",
-  },
-  buttonPressed: {
-    transform: [{ scale: 0.98 }],
-    opacity: 0.92,
+  secondaryActionButton: {
+    minWidth: 120,
   },
 });
