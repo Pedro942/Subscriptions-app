@@ -1,0 +1,703 @@
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { SvgUri } from "react-native-svg";
+
+import { theme } from "../../src/constants/theme";
+import {
+  Platform,
+  PlatformOffer,
+  SharedMember,
+  useApp,
+} from "../../src/context/AppContext";
+
+const billingCycles = ["monthly", "yearly"] as const;
+
+function groupedByCategory(platforms: Platform[]) {
+  return platforms.reduce<Record<string, Platform[]>>((acc, platform) => {
+    acc[platform.category] = acc[platform.category] ?? [];
+    acc[platform.category].push(platform);
+    return acc;
+  }, {});
+}
+
+function parseSharedWith(input: string): SharedMember[] {
+  return input
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [nameRaw, ratioRaw] = part.split(":").map((value) => value.trim());
+      const ratio = Number(ratioRaw);
+      return { name: nameRaw, share_ratio: Number.isFinite(ratio) ? ratio : 0 };
+    })
+    .filter(
+      (member) =>
+        member.name && member.share_ratio > 0 && member.share_ratio <= 1,
+    );
+}
+
+function BrandLogo({ uri, size = 18 }: { uri: string; size?: number }) {
+  const isSvg = uri.toLowerCase().includes(".svg");
+  if (isSvg) {
+    return (
+      <View
+        style={[
+          styles.brandLogoWrap,
+          { width: size, height: size, borderRadius: Math.max(4, size / 4) },
+        ]}
+      >
+        <SvgUri uri={uri} width={size - 4} height={size - 4} />
+      </View>
+    );
+  }
+  return (
+    <Image
+      source={{ uri }}
+      style={[styles.brandLogoImage, { width: size, height: size }]}
+    />
+  );
+}
+
+export default function AddScreen() {
+  const router = useRouter();
+  const { addSubscription, platforms, preferredCurrency, duplicateCheck } =
+    useApp();
+  const [selectedPlatformId, setSelectedPlatformId] = useState<string | null>(
+    null,
+  );
+  const [selectedOfferId, setSelectedOfferId] = useState<string | null>(null);
+  const [useManualPrice, setUseManualPrice] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [renewalDate, setRenewalDate] = useState("");
+  const [amount, setAmount] = useState("");
+  const [billingCycle, setBillingCycle] =
+    useState<(typeof billingCycles)[number]>("monthly");
+  const [customName, setCustomName] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
+  const [trialEndDate, setTrialEndDate] = useState("");
+  const [isTrial, setIsTrial] = useState(false);
+  const [sharedWithInput, setSharedWithInput] = useState("");
+
+  const groups = useMemo(() => groupedByCategory(platforms), [platforms]);
+  const selectedPlatform = useMemo(
+    () =>
+      platforms.find((platform) => platform.id === selectedPlatformId) ?? null,
+    [platforms, selectedPlatformId],
+  );
+  const selectedOffer = useMemo(
+    () =>
+      (selectedPlatform?.offers ?? []).find(
+        (offer) => offer.id === selectedOfferId,
+      ) ?? null,
+    [selectedPlatform, selectedOfferId],
+  );
+  const showManualAmount = !selectedOffer || useManualPrice;
+
+  function formatCurrency(amountValue: number, currency: string) {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(amountValue);
+  }
+
+  async function submitSubscription() {
+    if (!renewalDate || (showManualAmount && !amount)) {
+      Alert.alert("Missing fields", "Please provide renewal date and amount.");
+      return;
+    }
+    if (isTrial && !trialEndDate) {
+      Alert.alert(
+        "Missing trial date",
+        "Set a trial end date if this is a trial.",
+      );
+      return;
+    }
+
+    const payload = {
+      platform_id: selectedPlatformId ?? undefined,
+      platform_offer_id: selectedOfferId ?? undefined,
+      use_manual_price: useManualPrice,
+      custom_name: selectedPlatformId ? undefined : customName || undefined,
+      custom_category: selectedPlatformId
+        ? undefined
+        : customCategory || "Other",
+      renewal_date: renewalDate,
+      amount:
+        selectedOffer && !useManualPrice ? selectedOffer.price : Number(amount),
+      billing_cycle:
+        selectedOffer && !useManualPrice
+          ? selectedOffer.billing_cycle
+          : billingCycle,
+      currency:
+        selectedOffer && !useManualPrice
+          ? selectedOffer.currency
+          : preferredCurrency,
+      trial_end_date: isTrial ? trialEndDate : null,
+      is_trial: isTrial,
+      shared_with: parseSharedWith(sharedWithInput),
+    };
+
+    try {
+      const duplicate = await duplicateCheck(payload);
+      if (duplicate.is_duplicate) {
+        const continueAdd = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            "Potential duplicate",
+            `${duplicate.message} Continue anyway?`,
+            [
+              {
+                text: "Cancel",
+                style: "cancel",
+                onPress: () => resolve(false),
+              },
+              { text: "Continue", onPress: () => resolve(true) },
+            ],
+            { cancelable: false },
+          );
+        });
+        if (!continueAdd) {
+          return;
+        }
+      }
+
+      const result = await addSubscription(payload);
+      if (result.requiresAuth) {
+        Alert.alert(
+          "Login required",
+          "After 10 subscriptions, please create an account in Settings to keep adding subscriptions.",
+        );
+        router.push("/auth");
+        return;
+      }
+      setSelectedPlatformId(null);
+      setSelectedOfferId(null);
+      setUseManualPrice(false);
+      setRenewalDate("");
+      setAmount("");
+      setCustomName("");
+      setCustomCategory("");
+      setTrialEndDate("");
+      setIsTrial(false);
+      setSharedWithInput("");
+      setShowCustomModal(false);
+      Alert.alert(
+        "Saved",
+        result.duplicateWarning ?? "Subscription added successfully.",
+      );
+    } catch {
+      Alert.alert(
+        "Error",
+        "Could not add subscription. Check server connectivity.",
+      );
+    }
+  }
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Add subscription</Text>
+      <Text style={styles.subtitle}>
+        Pick a popular platform by category or create a custom subscription.
+      </Text>
+
+      <Pressable
+        style={styles.customButton}
+        onPress={() => {
+          setSelectedPlatformId(null);
+          setShowCustomModal(true);
+        }}
+      >
+        <Text style={styles.customButtonText}>+ Add custom subscription</Text>
+      </Pressable>
+
+      <ScrollView contentContainerStyle={styles.groupList}>
+        {Object.entries(groups).map(([category, entries]) => (
+          <View key={category} style={styles.groupCard}>
+            <Text style={styles.groupTitle}>{category}</Text>
+            <View style={styles.platformGrid}>
+              {entries.map((platform) => {
+                const selected = selectedPlatformId === platform.id;
+                return (
+                  <Pressable
+                    key={platform.id}
+                    style={[
+                      styles.platformChip,
+                      selected && styles.platformChipActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedPlatformId(platform.id);
+                      setSelectedOfferId(null);
+                      setUseManualPrice(false);
+                    }}
+                  >
+                    {platform.logo_url ? (
+                      <BrandLogo uri={platform.logo_url} size={18} />
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.platformChipText,
+                        selected && styles.platformChipTextActive,
+                      ]}
+                    >
+                      {platform.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
+
+      <View style={styles.formCard}>
+        {selectedPlatform ? (
+          <View style={styles.offerSection}>
+            <Text style={styles.offerSectionTitle}>
+              {selectedPlatform.name} offers
+            </Text>
+            <View style={styles.offerList}>
+              {(selectedPlatform.offers ?? []).map((offer: PlatformOffer) => {
+                const selected = selectedOfferId === offer.id;
+                return (
+                  <Pressable
+                    key={offer.id}
+                    style={[
+                      styles.offerChip,
+                      selected && styles.offerChipActive,
+                    ]}
+                    onPress={() => {
+                      setSelectedOfferId(offer.id);
+                      setUseManualPrice(false);
+                    }}
+                  >
+                    <Text style={styles.offerName}>{offer.name}</Text>
+                    <Text style={styles.offerPrice}>
+                      {formatCurrency(offer.price, offer.currency)} ·{" "}
+                      {offer.billing_cycle}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {(selectedPlatform.offers ?? []).length ? (
+              <Pressable
+                style={styles.manualToggleButton}
+                onPress={() => setUseManualPrice((value) => !value)}
+              >
+                <Text style={styles.manualToggleText}>
+                  {useManualPrice
+                    ? "Using manual price"
+                    : "Use manual price instead"}
+                </Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.manualHintText}>
+                No predefined offers for this platform yet. Enter amount and
+                billing cycle manually.
+              </Text>
+            )}
+          </View>
+        ) : null}
+        <Text style={styles.inputLabel}>Renewal date (YYYY-MM-DD)</Text>
+        <TextInput
+          style={styles.input}
+          value={renewalDate}
+          onChangeText={setRenewalDate}
+          placeholder="2026-12-31"
+          placeholderTextColor={theme.colors.textSecondary}
+        />
+        {showManualAmount ? (
+          <>
+            <Text style={styles.inputLabel}>Amount ({preferredCurrency})</Text>
+            <TextInput
+              style={styles.input}
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+              placeholder="9.99"
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+            <View style={styles.cycleRow}>
+              {billingCycles.map((cycle) => (
+                <Pressable
+                  key={cycle}
+                  onPress={() => setBillingCycle(cycle)}
+                  style={[
+                    styles.cycleChip,
+                    billingCycle === cycle && styles.cycleChipActive,
+                  ]}
+                >
+                  <Text style={styles.cycleText}>{cycle}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        ) : (
+          <View style={styles.autoPriceBox}>
+            <Text style={styles.autoPriceLabel}>Offer price</Text>
+            <Text style={styles.autoPriceValue}>
+              {selectedOffer
+                ? `${formatCurrency(selectedOffer.price, selectedOffer.currency)} · ${selectedOffer.billing_cycle}`
+                : "No offer selected"}
+            </Text>
+          </View>
+        )}
+        <View style={styles.toggleRow}>
+          <Pressable
+            style={[styles.toggleChip, isTrial && styles.toggleChipActive]}
+            onPress={() => setIsTrial(true)}
+          >
+            <Text style={styles.toggleText}>Trial</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.toggleChip, !isTrial && styles.toggleChipActive]}
+            onPress={() => setIsTrial(false)}
+          >
+            <Text style={styles.toggleText}>Paid</Text>
+          </Pressable>
+        </View>
+        {isTrial ? (
+          <>
+            <Text style={styles.inputLabel}>Trial end date (YYYY-MM-DD)</Text>
+            <TextInput
+              style={styles.input}
+              value={trialEndDate}
+              onChangeText={setTrialEndDate}
+              placeholder="2026-11-30"
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+          </>
+        ) : null}
+        <Text style={styles.inputLabel}>
+          Shared with (name:ratio, comma-separated)
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={sharedWithInput}
+          onChangeText={setSharedWithInput}
+          placeholder="Alice:0.5, Bob:0.25"
+          placeholderTextColor={theme.colors.textSecondary}
+        />
+        <Pressable
+          style={styles.submitButton}
+          onPress={() => void submitSubscription()}
+        >
+          <Text style={styles.submitButtonText}>Save subscription</Text>
+        </Pressable>
+      </View>
+
+      <Modal visible={showCustomModal} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Custom subscription</Text>
+            <TextInput
+              style={styles.input}
+              value={customName}
+              onChangeText={setCustomName}
+              placeholder="Name (e.g. Gym)"
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+            <TextInput
+              style={styles.input}
+              value={customCategory}
+              onChangeText={setCustomCategory}
+              placeholder="Category (e.g. Health)"
+              placeholderTextColor={theme.colors.textSecondary}
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => setShowCustomModal(false)}
+              >
+                <Text style={styles.secondaryButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={styles.submitButton}
+                onPress={() => void submitSubscription()}
+              >
+                <Text style={styles.submitButtonText}>Use custom</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+    padding: theme.spacing.md,
+  },
+  title: {
+    color: theme.colors.textPrimary,
+    fontSize: 24,
+    fontWeight: "700",
+  },
+  subtitle: {
+    color: theme.colors.textSecondary,
+    marginTop: 6,
+    marginBottom: theme.spacing.md,
+  },
+  customButton: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.radius.lg,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: theme.spacing.md,
+  },
+  customButtonText: {
+    color: theme.colors.textPrimary,
+    fontWeight: "600",
+  },
+  groupList: {
+    gap: theme.spacing.sm,
+    paddingBottom: theme.spacing.lg,
+  },
+  groupCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.md,
+  },
+  groupTitle: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
+    marginBottom: theme.spacing.sm,
+  },
+  platformGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  platformChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  platformChipActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: "#1A1328",
+  },
+  platformChipText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+  },
+  platformChipTextActive: {
+    color: theme.colors.textPrimary,
+  },
+  brandLogoWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    backgroundColor: "#fff",
+  },
+  brandLogoImage: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    backgroundColor: "#fff",
+  },
+  offerSection: {
+    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    padding: 10,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  offerSectionTitle: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  offerList: {
+    gap: 8,
+  },
+  offerChip: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    padding: 8,
+    backgroundColor: theme.colors.surface,
+  },
+  offerChipActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: "#1A1328",
+  },
+  offerName: {
+    color: theme.colors.textPrimary,
+    fontWeight: "600",
+  },
+  offerPrice: {
+    color: theme.colors.textSecondary,
+    marginTop: 2,
+  },
+  manualToggleButton: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 999,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  manualToggleText: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  manualHintText: {
+    marginTop: 10,
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+  },
+  autoPriceBox: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    padding: 10,
+    marginBottom: theme.spacing.sm,
+  },
+  autoPriceLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  autoPriceValue: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
+  },
+  formCard: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.lg,
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.sm,
+  },
+  inputLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    color: theme.colors.textPrimary,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    marginBottom: theme.spacing.sm,
+  },
+  cycleRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: theme.spacing.sm,
+  },
+  cycleChip: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  cycleChipActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: "#1A1328",
+  },
+  cycleText: {
+    color: theme.colors.textPrimary,
+    textTransform: "capitalize",
+  },
+  toggleRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: theme.spacing.sm,
+  },
+  toggleChip: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: theme.colors.surfaceElevated,
+  },
+  toggleChipActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: "#1A1328",
+  },
+  toggleText: {
+    color: theme.colors.textPrimary,
+    fontWeight: "600",
+  },
+  submitButton: {
+    backgroundColor: theme.colors.accent,
+    borderRadius: theme.radius.md,
+    paddingVertical: 11,
+    alignItems: "center",
+    minWidth: 120,
+  },
+  submitButtonText: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    padding: theme.spacing.md,
+  },
+  modalCard: {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+    borderWidth: 1,
+    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+  },
+  modalTitle: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
+    fontSize: 18,
+    marginBottom: theme.spacing.sm,
+  },
+  modalActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 10,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    paddingHorizontal: 14,
+    justifyContent: "center",
+  },
+  secondaryButtonText: {
+    color: theme.colors.textSecondary,
+  },
+});
