@@ -189,6 +189,10 @@ type AppContextShape = {
   sortOrder: SortOrder;
   isBiometricLockEnabled: boolean;
   isLocked: boolean;
+  isOffline: boolean;
+  lastSyncedAt: string | null;
+  subColors: Record<string, string>;
+  setSubColor: (id: string, color: string | null) => Promise<void>;
   setPreferredCurrency: (currency: string) => Promise<void>;
   setReminderLeadDays: (days: number) => Promise<void>;
   setRemindersEnabled: (enabled: boolean) => Promise<void>;
@@ -235,6 +239,9 @@ const STORAGE_KEYS = {
   quietHoursEnd: "subscription-hub:quiet-hours-end",
   onboardingComplete: "subscription-hub:onboarding-complete",
   biometricLockEnabled: "subscription-hub:biometric-lock-enabled",
+  cachedData: "subscription-hub:cached-data",
+  lastSyncedAt: "subscription-hub:last-synced-at",
+  subColors: "subscription-hub:sub-colors",
 };
 
 const defaultAnalytics: Analytics = {
@@ -367,6 +374,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [isBiometricLockEnabled, setBiometricLockEnabledState] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [subColors, setSubColorsState] = useState<Record<string, string>>({});
 
   const scheduleRenewalReminders = useCallback(
     async (subscriptionList: Subscription[], leadDays: number) => {
@@ -409,6 +419,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             date: reminderDate,
           },
         });
+      }
+
+      // Trial-expiry notifications: fire 1 day before and on the day itself.
+      for (const subscription of subscriptionList) {
+        if (!subscription.is_trial || !subscription.trial_end_date) continue;
+
+        const offsets: Array<{ daysOffset: number; title: string; body: string }> = [
+          {
+            daysOffset: 1,
+            title: `Trial ending tomorrow: ${subscription.name}`,
+            body: `Your ${subscription.name} trial ends tomorrow. Cancel now to avoid being charged.`,
+          },
+          {
+            daysOffset: 0,
+            title: `Trial ending today: ${subscription.name}`,
+            body: `Your ${subscription.name} trial ends today. Make sure to cancel if you don't want to be charged.`,
+          },
+        ];
+
+        for (const { daysOffset, title, body } of offsets) {
+          const notifDate = new Date(`${subscription.trial_end_date}T09:00:00`);
+          notifDate.setDate(notifDate.getDate() - daysOffset);
+          if (Number.isNaN(notifDate.getTime()) || notifDate <= now) continue;
+
+          if (quietHoursEnabled) {
+            const hour = notifDate.getHours();
+            const insideQuietRange =
+              blockedStart < blockedEnd
+                ? hour >= blockedStart && hour < blockedEnd
+                : hour >= blockedStart || hour < blockedEnd;
+            if (insideQuietRange) {
+              notifDate.setHours(blockedEnd, 0, 0, 0);
+            }
+          }
+
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title,
+              body,
+              data: { subscriptionId: subscription.id },
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.DATE,
+              date: notifDate,
+            },
+          });
+        }
       }
     },
     [notificationStatus, remindersEnabled, quietHoursEnabled, quietHoursStart, quietHoursEnd]
@@ -453,31 +510,53 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshAll = useCallback(async () => {
     if (!deviceId || isLocked) return;
     const authToken = token;
-    const [platformList, subscriptionList, analyticsData, calendarData, fxData, budgets] = await Promise.all([
-      apiRequest<Platform[]>({ path: "/platforms", token: authToken, deviceId }),
-      fetchSubscriptions(authToken, deviceId),
-      apiRequest<Analytics>({
-        path: `/analytics?currency=${preferredCurrency}`,
-        token: authToken,
-        deviceId,
-      }),
-      apiRequest<{ events: CalendarEvent[] }>({ path: "/calendar?horizon_days=120", token: authToken, deviceId }),
-      apiRequest<FxRates>({ path: "/fx-rates", token: authToken, deviceId }),
-      fetchBudgets(authToken, deviceId, preferredCurrency),
-    ]);
-    setPlatforms(platformList);
-    setSubscriptions(subscriptionList);
-    setAnalytics(analyticsData);
-    setCalendarEvents(calendarData.events);
-    setFxRates(fxData);
-    setBudgetConfigState(
-      budgets
-        ? {
-            monthly_limit: budgets.monthly_limit,
-            category_limits: budgets.category_limits,
-          }
-        : null
-    );
+    try {
+      const [platformList, subscriptionList, analyticsData, calendarData, fxData, budgets] = await Promise.all([
+        apiRequest<Platform[]>({ path: "/platforms", token: authToken, deviceId }),
+        fetchSubscriptions(authToken, deviceId),
+        apiRequest<Analytics>({
+          path: `/analytics?currency=${preferredCurrency}`,
+          token: authToken,
+          deviceId,
+        }),
+        apiRequest<{ events: CalendarEvent[] }>({ path: "/calendar?horizon_days=120", token: authToken, deviceId }),
+        apiRequest<FxRates>({ path: "/fx-rates", token: authToken, deviceId }),
+        fetchBudgets(authToken, deviceId, preferredCurrency),
+      ]);
+      const resolvedBudgetConfig = budgets
+        ? { monthly_limit: budgets.monthly_limit, category_limits: budgets.category_limits }
+        : null;
+      setPlatforms(platformList);
+      setSubscriptions(subscriptionList);
+      setAnalytics(analyticsData);
+      setCalendarEvents(calendarData.events);
+      setFxRates(fxData);
+      setBudgetConfigState(resolvedBudgetConfig);
+      setIsOffline(false);
+      const now = new Date().toISOString();
+      setLastSyncedAt(now);
+      try {
+        await Promise.all([
+          AsyncStorage.setItem(
+            STORAGE_KEYS.cachedData,
+            JSON.stringify({
+              platforms: platformList,
+              subscriptions: subscriptionList,
+              analytics: analyticsData,
+              calendarEvents: calendarData.events,
+              fxRates: fxData,
+              budgetConfig: resolvedBudgetConfig,
+            })
+          ),
+          AsyncStorage.setItem(STORAGE_KEYS.lastSyncedAt, now),
+        ]);
+      } catch {
+        // Cache write failure is non-fatal.
+      }
+    } catch {
+      // Network/API failure — keep stale state and signal offline mode.
+      setIsOffline(true);
+    }
   }, [deviceId, fetchBudgets, fetchSubscriptions, isLocked, preferredCurrency, token]);
 
   const initialize = useCallback(async () => {
@@ -493,6 +572,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       storedQuietEnd,
       storedOnboardingComplete,
       storedBiometricLock,
+      storedCachedData,
+      storedLastSynced,
+      storedSubColors,
     ] = await Promise.all([
       AsyncStorage.getItem(STORAGE_KEYS.token),
       AsyncStorage.getItem(STORAGE_KEYS.userEmail),
@@ -505,6 +587,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.getItem(STORAGE_KEYS.quietHoursEnd),
       AsyncStorage.getItem(STORAGE_KEYS.onboardingComplete),
       AsyncStorage.getItem(STORAGE_KEYS.biometricLockEnabled),
+      AsyncStorage.getItem(STORAGE_KEYS.cachedData),
+      AsyncStorage.getItem(STORAGE_KEYS.lastSyncedAt),
+      AsyncStorage.getItem(STORAGE_KEYS.subColors),
     ]);
     const permission = await Notifications.getPermissionsAsync();
     setNotificationStatus(permission.status);
@@ -544,6 +629,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setBiometricLockEnabledState(true);
       setIsLocked(true);
     }
+    if (storedCachedData) {
+      try {
+        const cached = JSON.parse(storedCachedData) as {
+          platforms?: Platform[];
+          subscriptions?: Subscription[];
+          analytics?: Analytics;
+          calendarEvents?: CalendarEvent[];
+          fxRates?: FxRates;
+          budgetConfig?: BudgetConfig | null;
+        };
+        if (cached.platforms) setPlatforms(cached.platforms);
+        if (cached.subscriptions) setSubscriptions(cached.subscriptions);
+        if (cached.analytics) setAnalytics(cached.analytics);
+        if (cached.calendarEvents) setCalendarEvents(cached.calendarEvents);
+        if (cached.fxRates) setFxRates(cached.fxRates);
+        if (cached.budgetConfig !== undefined) setBudgetConfigState(cached.budgetConfig);
+      } catch {
+        // Corrupted cache — ignore and wait for fresh fetch.
+      }
+    }
+    if (storedLastSynced) setLastSyncedAt(storedLastSynced);
+    if (storedSubColors) {
+      try {
+        setSubColorsState(JSON.parse(storedSubColors) as Record<string, string>);
+      } catch {
+        // Ignore corrupted data.
+      }
+    }
     setDeviceId(resolvedDeviceId);
   }, []);
 
@@ -557,14 +670,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!deviceId) return;
-    refreshAll().catch(() => {
-      setAnalytics(defaultAnalytics);
-      setPlatforms([]);
-      setSubscriptions([]);
-      setCalendarEvents([]);
-      setFxRates(null);
-      setBudgetConfigState(null);
-    });
+    void refreshAll();
   }, [deviceId, token, preferredCurrency, refreshAll, searchQuery, categoryFilter, sortBy, sortOrder, isLocked]);
 
   useEffect(() => {
@@ -614,8 +720,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const unlockApp = useCallback(async () => {
-    // Placeholder lock flow: can be replaced with expo-local-authentication prompt.
-    setIsLocked(false);
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!hasHardware || !isEnrolled) {
+      // Device has no biometric capability — unlock without challenge.
+      setIsLocked(false);
+      return;
+    }
+
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Unlock Subscription Hub",
+      fallbackLabel: "Use Passcode",
+      cancelLabel: "Cancel",
+      disableDeviceFallback: false,
+    });
+
+    if (result.success) {
+      setIsLocked(false);
+    }
   }, []);
 
   const lockApp = useCallback(() => {
@@ -820,6 +943,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [reminderLeadDays, scheduleRenewalReminders, subscriptions]);
 
+  const setSubColor = useCallback(async (id: string, color: string | null) => {
+    setSubColorsState((prev) => {
+      const next = { ...prev };
+      if (color) {
+        next[id] = color;
+      } else {
+        delete next[id];
+      }
+      void AsyncStorage.setItem(STORAGE_KEYS.subColors, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const needsAuthForMoreSubscriptions = !token && subscriptions.length >= 10;
 
   const value = useMemo<AppContextShape>(
@@ -849,6 +985,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       sortOrder,
       isBiometricLockEnabled,
       isLocked,
+      isOffline,
+      lastSyncedAt,
+      subColors,
+      setSubColor,
       setPreferredCurrency,
       setReminderLeadDays,
       setRemindersEnabled,
@@ -903,6 +1043,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       sortOrder,
       isBiometricLockEnabled,
       isLocked,
+      isOffline,
+      lastSyncedAt,
+      subColors,
+      setSubColor,
       setPreferredCurrency,
       setReminderLeadDays,
       setRemindersEnabled,

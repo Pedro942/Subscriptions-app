@@ -1,6 +1,6 @@
 import { FontAwesome5 } from "@expo/vector-icons";
 import { Link } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -66,7 +66,19 @@ export default function HomeScreen() {
     setSortBy,
     sortOrder,
     setSortOrder,
+    subColors,
+    setSubColor,
   } = useApp();
+
+  const COLOR_OPTIONS: Array<{ label: string; value: string | null }> = [
+    { label: "None", value: null },
+    { label: "Purple", value: "#8B5CF6" },
+    { label: "Blue", value: "#3B82F6" },
+    { label: "Green", value: "#22C55E" },
+    { label: "Amber", value: "#F59E0B" },
+    { label: "Red", value: "#EF4444" },
+    { label: "Teal", value: "#14B8A6" },
+  ];
   const [editingSubscription, setEditingSubscription] =
     useState<Subscription | null>(null);
   const [editAmount, setEditAmount] = useState("");
@@ -76,6 +88,18 @@ export default function HomeScreen() {
   const [editTrialEnabled, setEditTrialEnabled] = useState(false);
   const [editTrialEndDate, setEditTrialEndDate] = useState("");
   const [editSharedWithInput, setEditSharedWithInput] = useState("");
+  const [localSearch, setLocalSearch] = useState(searchQuery);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setSearchQuery(localSearch);
+    }, 300);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [localSearch, setSearchQuery]);
 
   const categories = useMemo(
     () =>
@@ -145,8 +169,8 @@ export default function HomeScreen() {
     <View style={styles.searchSortContainer}>
       <TextInput
         style={styles.searchInput}
-        value={searchQuery}
-        onChangeText={setSearchQuery}
+        value={localSearch}
+        onChangeText={setLocalSearch}
         placeholder="Search subscriptions"
         placeholderTextColor={theme.colors.textSecondary}
       />
@@ -294,7 +318,14 @@ export default function HomeScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.itemCard}>
+          <View
+            style={[
+              styles.itemCard,
+              subColors[item.id]
+                ? { borderLeftColor: subColors[item.id], borderLeftWidth: 3 }
+                : null,
+            ]}
+          >
             <View style={styles.itemLeading}>
               {item.platform_logo_url ? (
                 <Image
@@ -382,71 +413,138 @@ export default function HomeScreen() {
             <Text style={styles.modalSubtitle}>
               {editingSubscription?.name}
             </Text>
-            <TextInput
-              style={styles.input}
-              value={editAmount}
-              onChangeText={setEditAmount}
-              keyboardType="decimal-pad"
-              placeholder="Amount"
-              placeholderTextColor={theme.colors.textSecondary}
-            />
-            <TextInput
-              style={styles.input}
-              value={editRenewalDate}
-              onChangeText={setEditRenewalDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor={theme.colors.textSecondary}
-            />
-            <View style={styles.cycleRow}>
-              {billingCycles.map((cycle) => (
-                <Pressable
-                  key={cycle}
-                  style={[
-                    styles.cycleChip,
-                    editBillingCycle === cycle && styles.cycleChipActive,
-                  ]}
-                  onPress={() => setEditBillingCycle(cycle)}
-                >
-                  <Text style={styles.cycleChipText}>{cycle}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.toggleRow}>
-              <Pressable
-                style={[
-                  styles.toggleChip,
-                  editTrialEnabled && styles.toggleChipActive,
-                ]}
-                onPress={() => setEditTrialEnabled(true)}
-              >
-                <Text style={styles.toggleText}>Trial</Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.toggleChip,
-                  !editTrialEnabled && styles.toggleChipActive,
-                ]}
-                onPress={() => setEditTrialEnabled(false)}
-              >
-                <Text style={styles.toggleText}>Paid</Text>
-              </Pressable>
-            </View>
-            {editTrialEnabled ? (
+            <ScrollView
+              style={styles.modalScroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {(editingSubscription?.price_history ?? []).length > 0 ? (
+                <View style={styles.priceHistorySection}>
+                  <Text style={styles.priceHistoryTitle}>Price history</Text>
+                  {[...(editingSubscription?.price_history ?? [])]
+                    .reverse()
+                    .map((entry, i) => {
+                      const increased = entry.new_amount > entry.old_amount;
+                      return (
+                        <View key={i} style={styles.priceHistoryRow}>
+                          <Text style={styles.priceHistoryDate}>
+                            {entry.changed_at.slice(0, 10)}
+                          </Text>
+                          <View style={styles.priceHistoryArrow}>
+                            <Text style={styles.priceHistoryOld}>
+                              {formatCurrency(entry.old_amount, entry.old_currency)}
+                            </Text>
+                            <FontAwesome5
+                              name="arrow-right"
+                              size={10}
+                              color={theme.colors.textMuted}
+                            />
+                            <Text
+                              style={
+                                increased
+                                  ? styles.priceUp
+                                  : styles.priceDown
+                              }
+                            >
+                              {formatCurrency(entry.new_amount, entry.new_currency)}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
+                </View>
+              ) : null}
               <TextInput
                 style={styles.input}
-                value={editTrialEndDate}
-                onChangeText={setEditTrialEndDate}
-                placeholder="Trial end date (YYYY-MM-DD)"
+                value={editAmount}
+                onChangeText={setEditAmount}
+                keyboardType="decimal-pad"
+                placeholder="Amount"
                 placeholderTextColor={theme.colors.textSecondary}
               />
-            ) : null}
-            <TextInput
-              style={styles.input}
-              value={editSharedWithInput}
-              onChangeText={setEditSharedWithInput}
-              placeholder="Shared with (name:ratio, comma-separated)"
-              placeholderTextColor={theme.colors.textSecondary}
-            />
+              <TextInput
+                style={styles.input}
+                value={editRenewalDate}
+                onChangeText={setEditRenewalDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={theme.colors.textSecondary}
+              />
+              <View style={styles.cycleRow}>
+                {billingCycles.map((cycle) => (
+                  <Pressable
+                    key={cycle}
+                    style={[
+                      styles.cycleChip,
+                      editBillingCycle === cycle && styles.cycleChipActive,
+                    ]}
+                    onPress={() => setEditBillingCycle(cycle)}
+                  >
+                    <Text style={styles.cycleChipText}>{cycle}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={styles.toggleRow}>
+                <Pressable
+                  style={[
+                    styles.toggleChip,
+                    editTrialEnabled && styles.toggleChipActive,
+                  ]}
+                  onPress={() => setEditTrialEnabled(true)}
+                >
+                  <Text style={styles.toggleText}>Trial</Text>
+                </Pressable>
+                <Pressable
+                  style={[
+                    styles.toggleChip,
+                    !editTrialEnabled && styles.toggleChipActive,
+                  ]}
+                  onPress={() => setEditTrialEnabled(false)}
+                >
+                  <Text style={styles.toggleText}>Paid</Text>
+                </Pressable>
+              </View>
+              {editTrialEnabled ? (
+                <TextInput
+                  style={styles.input}
+                  value={editTrialEndDate}
+                  onChangeText={setEditTrialEndDate}
+                  placeholder="Trial end date (YYYY-MM-DD)"
+                  placeholderTextColor={theme.colors.textSecondary}
+                />
+              ) : null}
+              <TextInput
+                style={styles.input}
+                value={editSharedWithInput}
+                onChangeText={setEditSharedWithInput}
+                placeholder="Shared with (name:ratio, comma-separated)"
+                placeholderTextColor={theme.colors.textSecondary}
+              />
+              <Text style={styles.colorPickerLabel}>Tag colour</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.colorPickerRow}
+              >
+                {COLOR_OPTIONS.map((opt) => {
+                  const active =
+                    (subColors[editingSubscription?.id ?? ""] ?? null) === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.label}
+                      onPress={() =>
+                        editingSubscription &&
+                        void setSubColor(editingSubscription.id, opt.value)
+                      }
+                      style={[
+                        styles.colorSwatch,
+                        { backgroundColor: opt.value ?? theme.colors.surfaceSoft },
+                        active && styles.colorSwatchActive,
+                      ]}
+                    />
+                  );
+                })}
+              </ScrollView>
+            </ScrollView>
             <View style={styles.modalActions}>
               <Pressable
                 style={styles.secondaryButton}
@@ -764,7 +862,11 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     borderRadius: theme.radius.xl,
     padding: theme.spacing.md,
+    maxHeight: "85%",
     ...theme.effects.cardShadow,
+  },
+  modalScroll: {
+    flexGrow: 0,
   },
   modalTitle: {
     color: theme.colors.textPrimary,
@@ -852,5 +954,75 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: theme.colors.textPrimary,
     fontWeight: "700",
+  },
+  colorPickerLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 6,
+    marginTop: theme.spacing.xs,
+  },
+  colorPickerRow: {
+    gap: 10,
+    paddingBottom: 4,
+  },
+  colorSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  colorSwatchActive: {
+    borderColor: theme.colors.textPrimary,
+    borderWidth: 3,
+  },
+  priceHistorySection: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceSoft,
+    padding: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+    gap: 6,
+  },
+  priceHistoryTitle: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 4,
+  },
+  priceHistoryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  priceHistoryDate: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+  },
+  priceHistoryArrow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  priceHistoryOld: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    textDecorationLine: "line-through",
+  },
+  priceUp: {
+    color: theme.colors.danger,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  priceDown: {
+    color: theme.colors.success,
+    fontSize: 12,
+    fontWeight: "600",
   },
 });
