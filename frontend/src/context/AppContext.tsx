@@ -191,6 +191,8 @@ type AppContextShape = {
   isLocked: boolean;
   isOffline: boolean;
   lastSyncedAt: string | null;
+  subColors: Record<string, string>;
+  setSubColor: (id: string, color: string | null) => Promise<void>;
   setPreferredCurrency: (currency: string) => Promise<void>;
   setReminderLeadDays: (days: number) => Promise<void>;
   setRemindersEnabled: (enabled: boolean) => Promise<void>;
@@ -239,6 +241,7 @@ const STORAGE_KEYS = {
   biometricLockEnabled: "subscription-hub:biometric-lock-enabled",
   cachedData: "subscription-hub:cached-data",
   lastSyncedAt: "subscription-hub:last-synced-at",
+  subColors: "subscription-hub:sub-colors",
 };
 
 const defaultAnalytics: Analytics = {
@@ -373,6 +376,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLocked, setIsLocked] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
+  const [subColors, setSubColorsState] = useState<Record<string, string>>({});
 
   const scheduleRenewalReminders = useCallback(
     async (subscriptionList: Subscription[], leadDays: number) => {
@@ -570,6 +574,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       storedBiometricLock,
       storedCachedData,
       storedLastSynced,
+      storedSubColors,
     ] = await Promise.all([
       AsyncStorage.getItem(STORAGE_KEYS.token),
       AsyncStorage.getItem(STORAGE_KEYS.userEmail),
@@ -584,6 +589,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       AsyncStorage.getItem(STORAGE_KEYS.biometricLockEnabled),
       AsyncStorage.getItem(STORAGE_KEYS.cachedData),
       AsyncStorage.getItem(STORAGE_KEYS.lastSyncedAt),
+      AsyncStorage.getItem(STORAGE_KEYS.subColors),
     ]);
     const permission = await Notifications.getPermissionsAsync();
     setNotificationStatus(permission.status);
@@ -644,6 +650,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     }
     if (storedLastSynced) setLastSyncedAt(storedLastSynced);
+    if (storedSubColors) {
+      try {
+        setSubColorsState(JSON.parse(storedSubColors) as Record<string, string>);
+      } catch {
+        // Ignore corrupted data.
+      }
+    }
     setDeviceId(resolvedDeviceId);
   }, []);
 
@@ -930,6 +943,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [reminderLeadDays, scheduleRenewalReminders, subscriptions]);
 
+  const setSubColor = useCallback(async (id: string, color: string | null) => {
+    setSubColorsState((prev) => {
+      const next = { ...prev };
+      if (color) {
+        next[id] = color;
+      } else {
+        delete next[id];
+      }
+      void AsyncStorage.setItem(STORAGE_KEYS.subColors, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const needsAuthForMoreSubscriptions = !token && subscriptions.length >= 10;
 
   const value = useMemo<AppContextShape>(
@@ -961,6 +987,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isLocked,
       isOffline,
       lastSyncedAt,
+      subColors,
+      setSubColor,
       setPreferredCurrency,
       setReminderLeadDays,
       setRemindersEnabled,
@@ -1017,6 +1045,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       isLocked,
       isOffline,
       lastSyncedAt,
+      subColors,
+      setSubColor,
       setPreferredCurrency,
       setReminderLeadDays,
       setRemindersEnabled,

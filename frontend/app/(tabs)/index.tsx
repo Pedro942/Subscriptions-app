@@ -66,7 +66,19 @@ export default function HomeScreen() {
     setSortBy,
     sortOrder,
     setSortOrder,
+    subColors,
+    setSubColor,
   } = useApp();
+
+  const COLOR_OPTIONS: Array<{ label: string; value: string | null }> = [
+    { label: "None", value: null },
+    { label: "Purple", value: "#8B5CF6" },
+    { label: "Blue", value: "#3B82F6" },
+    { label: "Green", value: "#22C55E" },
+    { label: "Amber", value: "#F59E0B" },
+    { label: "Red", value: "#EF4444" },
+    { label: "Teal", value: "#14B8A6" },
+  ];
   const [editingSubscription, setEditingSubscription] =
     useState<Subscription | null>(null);
   const [editAmount, setEditAmount] = useState("");
@@ -306,7 +318,14 @@ export default function HomeScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={styles.itemCard}>
+          <View
+            style={[
+              styles.itemCard,
+              subColors[item.id]
+                ? { borderLeftColor: subColors[item.id], borderLeftWidth: 3 }
+                : null,
+            ]}
+          >
             <View style={styles.itemLeading}>
               {item.platform_logo_url ? (
                 <Image
@@ -500,6 +519,31 @@ export default function HomeScreen() {
                 placeholder="Shared with (name:ratio, comma-separated)"
                 placeholderTextColor={theme.colors.textSecondary}
               />
+              <Text style={styles.colorPickerLabel}>Tag colour</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.colorPickerRow}
+              >
+                {COLOR_OPTIONS.map((opt) => {
+                  const active =
+                    (subColors[editingSubscription?.id ?? ""] ?? null) === opt.value;
+                  return (
+                    <Pressable
+                      key={opt.label}
+                      onPress={() =>
+                        editingSubscription &&
+                        void setSubColor(editingSubscription.id, opt.value)
+                      }
+                      style={[
+                        styles.colorSwatch,
+                        { backgroundColor: opt.value ?? theme.colors.surfaceSoft },
+                        active && styles.colorSwatchActive,
+                      ]}
+                    />
+                  );
+                })}
+              </ScrollView>
             </ScrollView>
             <View style={styles.modalActions}>
               <Pressable
@@ -910,6 +954,30 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: theme.colors.textPrimary,
     fontWeight: "700",
+  },
+  colorPickerLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 6,
+    marginTop: theme.spacing.xs,
+  },
+  colorPickerRow: {
+    gap: 10,
+    paddingBottom: 4,
+  },
+  colorSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+  },
+  colorSwatchActive: {
+    borderColor: theme.colors.textPrimary,
+    borderWidth: 3,
   },
   priceHistorySection: {
     borderWidth: 1,
