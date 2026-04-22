@@ -34,17 +34,33 @@ function LockScreen() {
   );
 }
 
+function formatSyncTime(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return "just now";
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
 function AppShell() {
-  const { onboardingComplete, isLocked } = useApp();
+  const { onboardingComplete, isLocked, isOffline, lastSyncedAt } = useApp();
 
   if (isLocked) {
     return <LockScreen />;
   }
 
   return (
-    <>
+    <View style={styles.appShell}>
       <StatusBar style="light" />
       {onboardingComplete ? null : <Redirect href="/onboarding" />}
+      {isOffline ? (
+        <View style={styles.offlineBanner}>
+          <FontAwesome5 name="wifi" size={11} color={theme.colors.textPrimary} />
+          <Text style={styles.offlineText}>
+            Offline{lastSyncedAt ? ` · Last synced ${formatSyncTime(lastSyncedAt)}` : ""}
+          </Text>
+        </View>
+      ) : null}
       <Stack
         screenOptions={{
           headerStyle: { backgroundColor: theme.colors.background },
@@ -64,7 +80,7 @@ function AppShell() {
           }}
         />
       </Stack>
-    </>
+    </View>
   );
 }
 
@@ -77,6 +93,23 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
+  appShell: {
+    flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: theme.colors.warning,
+    paddingVertical: 5,
+  },
+  offlineText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
   lockContainer: {
     flex: 1,
     backgroundColor: theme.colors.background,
