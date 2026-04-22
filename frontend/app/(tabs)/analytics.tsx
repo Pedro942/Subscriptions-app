@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "../../src/constants/theme";
@@ -11,8 +12,66 @@ function formatCurrency(amount: number, currency: string) {
   }).format(amount);
 }
 
+function formatShort(amount: number, currency: string) {
+  if (amount >= 1000) {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 1,
+      notation: "compact",
+    }).format(amount);
+  }
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+const TREND_MONTHS = 6;
+const CHART_HEIGHT = 100;
+
 export default function AnalyticsScreen() {
-  const { analytics, preferredCurrency, fxRates, budgetConfig } = useApp();
+  const { analytics, preferredCurrency, fxRates, budgetConfig, subscriptions } = useApp();
+
+  const trendData = useMemo(() => {
+    if (!subscriptions.length) return [];
+    const now = new Date();
+    const fxBase = fxRates?.base ?? preferredCurrency;
+
+    return Array.from({ length: TREND_MONTHS }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      let total = 0;
+
+      for (const sub of subscriptions) {
+        let amount = sub.amount;
+        if (sub.currency !== preferredCurrency && fxRates) {
+          const fromRate = sub.currency === fxBase ? 1 : (fxRates.rates[sub.currency] ?? 1);
+          const toRate = preferredCurrency === fxBase ? 1 : (fxRates.rates[preferredCurrency] ?? 1);
+          amount = (sub.amount / fromRate) * toRate;
+        }
+        if (sub.billing_cycle === "monthly") {
+          total += amount;
+        } else {
+          const renewal = new Date(sub.renewal_date);
+          if (renewal.getMonth() === d.getMonth()) {
+            total += amount;
+          }
+        }
+      }
+
+      return {
+        label: d.toLocaleString("default", { month: "short" }),
+        total: Math.round(total * 100) / 100,
+        isCurrent: i === 0,
+      };
+    });
+  }, [subscriptions, preferredCurrency, fxRates]);
+
+  const trendMax = useMemo(
+    () => Math.max(...trendData.map((m) => m.total), 1),
+    [trendData],
+  );
 
   const categoryEntries = Object.entries(
     analytics?.category_breakdown ?? {},
@@ -72,6 +131,49 @@ export default function AnalyticsScreen() {
           </Text>
         </View>
       </View>
+
+      {trendData.length > 0 ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Spending trend (next 6 months)</Text>
+          <View style={styles.trendChart}>
+            {trendData.map((month) => {
+              const barH = Math.max(4, Math.round((month.total / trendMax) * CHART_HEIGHT));
+              return (
+                <View key={month.label} style={styles.trendColumn}>
+                  <Text style={styles.trendAmount}>
+                    {formatShort(month.total, preferredCurrency)}
+                  </Text>
+                  <View
+                    style={[
+                      styles.trendBar,
+                      {
+                        height: barH,
+                        backgroundColor: month.isCurrent
+                          ? theme.colors.accent
+                          : theme.colors.accentSoft,
+                        borderColor: month.isCurrent
+                          ? theme.colors.accent
+                          : theme.colors.border,
+                      },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.trendLabel,
+                      month.isCurrent && styles.trendLabelCurrent,
+                    ]}
+                  >
+                    {month.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+          <Text style={styles.trendHint}>
+            Monthly subs contribute every month; yearly subs appear in their renewal month.
+          </Text>
+        </View>
+      ) : null}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Category breakdown</Text>
@@ -414,6 +516,44 @@ const styles = StyleSheet.create({
   projectionText: {
     color: theme.colors.textSecondary,
     lineHeight: 20,
+  },
+  trendChart: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 6,
+    height: CHART_HEIGHT + 52,
+    marginTop: 4,
+  },
+  trendColumn: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 4,
+  },
+  trendBar: {
+    width: "100%",
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  trendAmount: {
+    color: theme.colors.textMuted,
+    fontSize: 9,
+    textAlign: "center",
+  },
+  trendLabel: {
+    color: theme.colors.textSecondary,
+    fontSize: 11,
+    textAlign: "center",
+  },
+  trendLabelCurrent: {
+    color: theme.colors.accent,
+    fontWeight: "700",
+  },
+  trendHint: {
+    color: theme.colors.textMuted,
+    fontSize: 11,
+    marginTop: theme.spacing.sm,
+    fontStyle: "italic",
   },
   legacyInsightRow: {
     flexDirection: "row",
