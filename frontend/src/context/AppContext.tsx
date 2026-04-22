@@ -614,8 +614,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const unlockApp = useCallback(async () => {
-    // Placeholder lock flow: can be replaced with expo-local-authentication prompt.
-    setIsLocked(false);
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!hasHardware || !isEnrolled) {
+      // Device has no biometric capability — unlock without challenge.
+      setIsLocked(false);
+      return;
+    }
+
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Unlock Subscription Hub",
+      fallbackLabel: "Use Passcode",
+      cancelLabel: "Cancel",
+      disableDeviceFallback: false,
+    });
+
+    if (result.success) {
+      setIsLocked(false);
+    }
   }, []);
 
   const lockApp = useCallback(() => {

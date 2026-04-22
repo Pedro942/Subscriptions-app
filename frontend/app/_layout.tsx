@@ -1,26 +1,44 @@
 import { Redirect, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { FontAwesome5 } from "@expo/vector-icons";
+import React, { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppProvider } from "../src/context/AppContext";
 import { theme } from "../src/constants/theme";
 import { useApp } from "../src/context/AppContext";
 
+function LockScreen() {
+  const { unlockApp } = useApp();
+
+  useEffect(() => {
+    void unlockApp();
+  }, [unlockApp]);
+
+  return (
+    <View style={styles.lockContainer}>
+      <FontAwesome5
+        name="fingerprint"
+        size={56}
+        color={theme.colors.accent}
+        style={styles.lockIcon}
+      />
+      <Text style={styles.lockTitle}>App Locked</Text>
+      <Text style={styles.lockSubtitle}>
+        Authenticate with biometrics or your device passcode to continue.
+      </Text>
+      <Pressable style={styles.unlockButton} onPress={() => void unlockApp()}>
+        <Text style={styles.unlockButtonText}>Try Again</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 function AppShell() {
-  const { onboardingComplete, isLocked, unlockApp } = useApp();
+  const { onboardingComplete, isLocked } = useApp();
 
   if (isLocked) {
-    return (
-      <View style={styles.lockContainer}>
-        <Text style={styles.lockTitle}>App Locked</Text>
-        <Text style={styles.lockSubtitle}>
-          Biometric lock is enabled. Unlock to continue.
-        </Text>
-        <Pressable style={styles.unlockButton} onPress={() => void unlockApp()}>
-          <Text style={styles.unlockButtonText}>Unlock</Text>
-        </Pressable>
-      </View>
-    );
+    return <LockScreen />;
   }
 
   return (
@@ -63,20 +81,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
     justifyContent: "center",
+    alignItems: "center",
     padding: theme.spacing.xl,
+  },
+  lockIcon: {
+    marginBottom: theme.spacing.lg,
   },
   lockTitle: {
     color: theme.colors.textPrimary,
     fontSize: 30,
     fontWeight: "700",
     marginBottom: 8,
+    textAlign: "center",
   },
   lockSubtitle: {
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.lg,
+    textAlign: "center",
   },
   unlockButton: {
-    alignSelf: "flex-start",
+    alignSelf: "center",
     backgroundColor: theme.colors.accent,
     borderRadius: theme.radius.lg,
     paddingVertical: 12,
