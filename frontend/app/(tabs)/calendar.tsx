@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "../../src/constants/theme";
 import { useApp } from "../../src/context/AppContext";
@@ -30,10 +31,45 @@ function formatCurrency(amount: number, currency: string) {
 }
 
 export default function CalendarScreen() {
-  const { calendarEvents } = useApp();
+  const { calendarEvents, markRenewed, snoozeSubscription, skipSubscriptionCycle } =
+    useApp();
   const grouped = groupEvents(calendarEvents);
   const dates = Object.keys(grouped).sort();
   const upcomingCount = calendarEvents.length;
+  const [busyEventId, setBusyEventId] = useState<string | null>(null);
+
+  async function handleMarkRenewed(subscriptionId: string) {
+    try {
+      setBusyEventId(subscriptionId);
+      await markRenewed(subscriptionId);
+    } catch {
+      Alert.alert("Action failed", "Could not mark renewal.");
+    } finally {
+      setBusyEventId(null);
+    }
+  }
+
+  async function handleSnooze(subscriptionId: string) {
+    try {
+      setBusyEventId(subscriptionId);
+      await snoozeSubscription(subscriptionId, 7);
+    } catch {
+      Alert.alert("Action failed", "Could not snooze this event.");
+    } finally {
+      setBusyEventId(null);
+    }
+  }
+
+  async function handleSkipCycle(subscriptionId: string) {
+    try {
+      setBusyEventId(subscriptionId);
+      await skipSubscriptionCycle(subscriptionId);
+    } catch {
+      Alert.alert("Action failed", "Could not skip this cycle.");
+    } finally {
+      setBusyEventId(null);
+    }
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -64,6 +100,46 @@ export default function CalendarScreen() {
                     {formatCurrency(event.amount, event.currency)}
                   </Text>
                 </View>
+                {event.type === "renewal" ? (
+                  <View style={styles.actionRow}>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        styles.actionSuccess,
+                        pressed && styles.actionPressed,
+                        busyEventId === event.id && styles.actionDisabled,
+                      ]}
+                      disabled={busyEventId === event.id}
+                      onPress={() => void handleMarkRenewed(event.id)}
+                    >
+                      <Text style={styles.actionText}>Mark renewed</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        styles.actionInfo,
+                        pressed && styles.actionPressed,
+                        busyEventId === event.id && styles.actionDisabled,
+                      ]}
+                      disabled={busyEventId === event.id}
+                      onPress={() => void handleSnooze(event.id)}
+                    >
+                      <Text style={styles.actionText}>Snooze 7d</Text>
+                    </Pressable>
+                    <Pressable
+                      style={({ pressed }) => [
+                        styles.actionButton,
+                        styles.actionWarning,
+                        pressed && styles.actionPressed,
+                        busyEventId === event.id && styles.actionDisabled,
+                      ]}
+                      disabled={busyEventId === event.id}
+                      onPress={() => void handleSkipCycle(event.id)}
+                    >
+                      <Text style={styles.actionText}>Skip cycle</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
               </View>
             ))}
           </View>
@@ -141,6 +217,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: theme.colors.border,
     paddingTop: 8,
+    gap: 8,
   },
   eventDetails: {
     gap: 2,
@@ -152,5 +229,41 @@ const styles = StyleSheet.create({
   eventType: {
     color: theme.colors.textSecondary,
     fontSize: 12,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  actionButton: {
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  actionSuccess: {
+    backgroundColor: theme.colors.successBg,
+    borderColor: theme.colors.success,
+  },
+  actionInfo: {
+    backgroundColor: theme.colors.infoBg,
+    borderColor: theme.colors.accent,
+  },
+  actionWarning: {
+    backgroundColor: theme.colors.warningBg,
+    borderColor: theme.colors.warning,
+  },
+  actionText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  actionPressed: {
+    opacity: 0.86,
+    transform: [{ scale: 0.98 }],
+  },
+  actionDisabled: {
+    opacity: 0.5,
   },
 });

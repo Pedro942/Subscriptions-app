@@ -118,6 +118,10 @@ class SubscriptionUpdate(BaseModel):
     shared_with: list[SharedMember] | None = None
 
 
+class SnoozePayload(BaseModel):
+    days: int = Field(default=7, ge=1, le=30)
+
+
 class SharedMemberOut(BaseModel):
     name: str
     share_ratio: float
@@ -1438,6 +1442,68 @@ async def mark_renewed(
                 "renewal_date": new_date,
                 "is_trial": False,
                 "trial_end_date": None,
+                "updated_at": datetime.now(UTC),
+            }
+        },
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/subscriptions/{subscription_id}/snooze", status_code=status.HTTP_204_NO_CONTENT)
+async def snooze_subscription(
+    subscription_id: str,
+    payload: SnoozePayload,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],
+    owner: Annotated[OwnerContext, Depends(get_owner_context)],
+) -> Response:
+    query = {
+        "_id": parse_object_id(subscription_id),
+        "owner_type": owner.owner_type,
+        "owner_id": owner.owner_id,
+    }
+    existing = await db.subscriptions.find_one(query)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found.")
+    renewal = existing.get("renewal_date")
+    if not isinstance(renewal, date):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid renewal date.")
+    new_date = renewal + timedelta(days=payload.days)
+    await db.subscriptions.update_one(
+        query,
+        {
+            "$set": {
+                "renewal_date": new_date,
+                "updated_at": datetime.now(UTC),
+            }
+        },
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post("/subscriptions/{subscription_id}/skip-cycle", status_code=status.HTTP_204_NO_CONTENT)
+async def skip_subscription_cycle(
+    subscription_id: str,
+    db: Annotated[AsyncIOMotorDatabase, Depends(get_database)],
+    owner: Annotated[OwnerContext, Depends(get_owner_context)],
+) -> Response:
+    query = {
+        "_id": parse_object_id(subscription_id),
+        "owner_type": owner.owner_type,
+        "owner_id": owner.owner_id,
+    }
+    existing = await db.subscriptions.find_one(query)
+    if not existing:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found.")
+    renewal = existing.get("renewal_date")
+    if not isinstance(renewal, date):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid renewal date.")
+    cycle_days = 30 if existing.get("billing_cycle") == "monthly" else 365
+    new_date = renewal + timedelta(days=cycle_days)
+    await db.subscriptions.update_one(
+        query,
+        {
+            "$set": {
+                "renewal_date": new_date,
                 "updated_at": datetime.now(UTC),
             }
         },

@@ -208,6 +208,8 @@ type AppContextShape = {
   updateSubscription: (id: string, payload: UpdateSubscriptionInput) => Promise<void>;
   deleteSubscription: (id: string) => Promise<void>;
   markRenewed: (id: string) => Promise<void>;
+  snoozeSubscription: (id: string, days?: number) => Promise<void>;
+  skipSubscriptionCycle: (id: string) => Promise<void>;
   duplicateCheck: (payload: AddSubscriptionInput) => Promise<{ is_duplicate: boolean; duplicate_count: number; message: string }>;
   exportJson: () => Promise<string>;
   exportCsv: () => Promise<string>;
@@ -757,6 +759,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [deviceId, refreshAll, token]
   );
 
+  const snoozeSubscription = useCallback(
+    async (id: string, days: number = 7) => {
+      if (!deviceId) return;
+      await apiRequest<void>({
+        path: `/subscriptions/${id}/snooze`,
+        method: "POST",
+        token,
+        deviceId,
+        body: { days },
+      });
+      await refreshAll();
+    },
+    [deviceId, refreshAll, token]
+  );
+
+  const skipSubscriptionCycle = useCallback(
+    async (id: string) => {
+      if (!deviceId) return;
+      await apiRequest<void>({
+        path: `/subscriptions/${id}/skip-cycle`,
+        method: "POST",
+        token,
+        deviceId,
+      });
+      await refreshAll();
+    },
+    [deviceId, refreshAll, token]
+  );
+
   const setBudgetConfig = useCallback(
     async (config: BudgetConfig) => {
       if (!deviceId) return;
@@ -868,6 +899,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateSubscription,
       deleteSubscription,
       markRenewed,
+      snoozeSubscription,
+      skipSubscriptionCycle,
       duplicateCheck,
       exportJson,
       exportCsv,
@@ -922,6 +955,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       updateSubscription,
       deleteSubscription,
       markRenewed,
+      snoozeSubscription,
+      skipSubscriptionCycle,
       duplicateCheck,
       exportJson,
       exportCsv,
