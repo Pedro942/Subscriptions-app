@@ -33,6 +33,7 @@ export default function CalendarScreen() {
   const { calendarEvents } = useApp();
   const grouped = groupEvents(calendarEvents);
   const dates = Object.keys(grouped).sort();
+  const upcomingCount = calendarEvents.length;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -40,6 +41,9 @@ export default function CalendarScreen() {
       <Text style={styles.subtitle}>
         Timeline view for renewals and trial conversions.
       </Text>
+      <View style={styles.summaryChip}>
+        <Text style={styles.summaryChipText}>{upcomingCount} upcoming events</Text>
+      </View>
       {dates.length === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>No upcoming events</Text>
@@ -87,13 +91,27 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.xs,
+  },
+  summaryChip: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: theme.colors.borderStrong,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: theme.colors.infoBg,
+  },
+  summaryChipText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: "700",
   },
   emptyCard: {
     borderWidth: 1,
     borderColor: theme.colors.borderStrong,
     borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceElevated,
     padding: theme.spacing.lg,
     ...theme.effects.softShadow,
   },
@@ -109,7 +127,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderStrong,
     borderRadius: theme.radius.lg,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceElevated,
     padding: theme.spacing.md,
     gap: 8,
     ...theme.effects.softShadow,

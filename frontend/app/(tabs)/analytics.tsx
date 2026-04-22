@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Link } from "expo-router";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { theme } from "../../src/constants/theme";
 import { useApp } from "../../src/context/AppContext";
@@ -29,6 +30,16 @@ export default function AnalyticsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <View style={styles.heroCard}>
+        <Text style={styles.heroEyebrow}>Spending snapshot</Text>
+        <Text style={styles.heroTitle}>
+          {formatCurrency(monthlyTotal, preferredCurrency)} / month
+        </Text>
+        <Text style={styles.heroSubtitle}>
+          {formatCurrency(yearlyTotal, preferredCurrency)} projected yearly spend
+        </Text>
+      </View>
+
       <View style={styles.summaryRow}>
         <View style={styles.summaryCard}>
           <Text style={styles.label}>Monthly</Text>
@@ -76,9 +87,21 @@ export default function AnalyticsScreen() {
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Category breakdown</Text>
         {categoryEntries.length === 0 ? (
-          <Text style={styles.emptyText}>
-            Add subscriptions to see your spend distribution.
-          </Text>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              Add subscriptions to see your spend distribution.
+            </Text>
+            <Link href="/(tabs)/add" asChild>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.inlineCta,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <Text style={styles.inlineCtaText}>Add subscription</Text>
+              </Pressable>
+            </Link>
+          </View>
         ) : (
           categoryEntries.map(([category, totals]) => {
             const widthRatio = Math.max(0.08, totals.monthly / maxMonthly);
@@ -153,9 +176,11 @@ export default function AnalyticsScreen() {
             </View>
           ))
         ) : (
-          <Text style={styles.emptyText}>
-            No trial conversions in the next 14 days.
-          </Text>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              No trial conversions in the next 14 days.
+            </Text>
+          </View>
         )}
       </View>
 
@@ -231,7 +256,31 @@ const styles = StyleSheet.create({
   content: {
     padding: theme.spacing.md,
     gap: theme.spacing.md,
-    paddingBottom: 40,
+    paddingBottom: 96,
+  },
+  heroCard: {
+    backgroundColor: theme.colors.surfaceAccent,
+    borderWidth: 1,
+    borderColor: theme.colors.accentAlt,
+    borderRadius: theme.radius.xl,
+    padding: theme.spacing.lg,
+    ...theme.effects.cardShadow,
+  },
+  heroEyebrow: {
+    color: theme.colors.textSecondary,
+    fontSize: 12,
+    marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  heroTitle: {
+    color: theme.colors.textPrimary,
+    fontSize: 26,
+    fontWeight: "700",
+  },
+  heroSubtitle: {
+    color: theme.colors.textSecondary,
+    marginTop: 4,
   },
   summaryRow: {
     flexDirection: "row",
@@ -296,6 +345,23 @@ const styles = StyleSheet.create({
   emptyText: {
     color: theme.colors.textSecondary,
   },
+  emptyState: {
+    gap: theme.spacing.sm,
+  },
+  inlineCta: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.accentSoft,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  inlineCtaText: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
+    fontSize: 12,
+  },
   barRow: {
     marginBottom: theme.spacing.sm,
   },
@@ -334,12 +400,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   renewalRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     paddingVertical: 9,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceSoft,
+    marginBottom: 8,
   },
   renewalName: {
     color: theme.colors.textPrimary,
@@ -353,9 +418,11 @@ const styles = StyleSheet.create({
   insightRow: {
     flexDirection: "row",
     gap: 10,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.colors.border,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.surfaceSoft,
+    marginBottom: 8,
   },
   insightSeverity: {
     fontSize: 11,
@@ -391,7 +458,7 @@ const styles = StyleSheet.create({
   rateChip: {
     borderWidth: 1,
     borderColor: theme.colors.borderStrong,
-    borderRadius: 10,
+    borderRadius: theme.radius.sm,
     backgroundColor: theme.colors.surfaceElevated,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -414,5 +481,9 @@ const styles = StyleSheet.create({
   projectionText: {
     color: theme.colors.textSecondary,
     lineHeight: 20,
+  },
+  buttonPressed: {
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
   },
 });

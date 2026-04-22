@@ -221,9 +221,10 @@ export default function SettingsScreen() {
               <Pressable
                 key={currency}
                 onPress={() => void handleCurrencyChange(currency)}
-                style={[
+                style={({ pressed }) => [
                   styles.currencyChip,
                   active && styles.currencyChipActive,
+                  pressed && styles.buttonPressed,
                 ]}
               >
                 <Text
@@ -253,7 +254,10 @@ export default function SettingsScreen() {
           permissions.
         </Text>
         <Pressable
-          style={styles.primaryButton}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.buttonPressed,
+          ]}
           onPress={() => void handleNotifications()}
         >
           <Text style={styles.primaryButtonText}>
@@ -264,18 +268,20 @@ export default function SettingsScreen() {
         </Pressable>
         <View style={styles.row}>
           <Pressable
-            style={[
+            style={({ pressed }) => [
               styles.toggleChip,
               remindersEnabled && styles.toggleChipActive,
+              pressed && styles.buttonPressed,
             ]}
             onPress={() => void handleToggleReminders(true)}
           >
             <Text style={styles.toggleChipText}>On</Text>
           </Pressable>
           <Pressable
-            style={[
+            style={({ pressed }) => [
               styles.toggleChip,
               !remindersEnabled && styles.toggleChipActive,
+              pressed && styles.buttonPressed,
             ]}
             onPress={() => void handleToggleReminders(false)}
           >
@@ -292,9 +298,10 @@ export default function SettingsScreen() {
               <Pressable
                 key={days}
                 onPress={() => void handleLeadDays(days)}
-                style={[
+                style={({ pressed }) => [
                   styles.currencyChip,
                   active && styles.currencyChipActive,
+                  pressed && styles.buttonPressed,
                 ]}
               >
                 <Text
@@ -318,18 +325,20 @@ export default function SettingsScreen() {
         </Text>
         <View style={styles.row}>
           <Pressable
-            style={[
+            style={({ pressed }) => [
               styles.toggleChip,
               quietHoursEnabled && styles.toggleChipActive,
+              pressed && styles.buttonPressed,
             ]}
             onPress={() => void handleQuietHours(true)}
           >
             <Text style={styles.toggleChipText}>Enabled</Text>
           </Pressable>
           <Pressable
-            style={[
+            style={({ pressed }) => [
               styles.toggleChip,
               !quietHoursEnabled && styles.toggleChipActive,
+              pressed && styles.buttonPressed,
             ]}
             onPress={() => void handleQuietHours(false)}
           >
@@ -347,9 +356,10 @@ export default function SettingsScreen() {
             return (
               <Pressable
                 key={slot.label}
-                style={[
+                style={({ pressed }) => [
                   styles.currencyChip,
                   active && styles.currencyChipActive,
+                  pressed && styles.buttonPressed,
                 ]}
                 onPress={() => void handleQuietWindow(slot.start, slot.end)}
               >
@@ -389,7 +399,10 @@ export default function SettingsScreen() {
           placeholderTextColor={theme.colors.textSecondary}
         />
         <Pressable
-          style={styles.primaryButton}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.buttonPressed,
+          ]}
           onPress={() => void handleSaveBudget()}
         >
           <Text style={styles.primaryButtonText}>Save budget</Text>
@@ -404,13 +417,19 @@ export default function SettingsScreen() {
         </Text>
         <View style={styles.row}>
           <Pressable
-            style={styles.secondaryButton}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={() => void handleExportJson()}
           >
             <Text style={styles.secondaryButtonText}>Export JSON</Text>
           </Pressable>
           <Pressable
-            style={styles.secondaryButton}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              pressed && styles.buttonPressed,
+            ]}
             onPress={() => void handleExportCsv()}
           >
             <Text style={styles.secondaryButtonText}>Export CSV</Text>
@@ -425,7 +444,10 @@ export default function SettingsScreen() {
           placeholderTextColor={theme.colors.textSecondary}
         />
         <Pressable
-          style={styles.primaryButton}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.buttonPressed,
+          ]}
           onPress={() => void handleImportJson()}
         >
           <Text style={styles.primaryButtonText}>Import JSON</Text>
@@ -438,7 +460,10 @@ export default function SettingsScreen() {
           Enable app lock and unlock using local biometrics.
         </Text>
         <Pressable
-          style={styles.primaryButton}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.buttonPressed,
+          ]}
           onPress={() => void handleBiometricToggle()}
         >
           <Text style={styles.primaryButtonText}>{biometricLabel}</Text>
@@ -451,7 +476,10 @@ export default function SettingsScreen() {
           <>
             <Text style={styles.cardSubtitle}>Logged in as {userEmail}</Text>
             <Pressable
-              style={styles.secondaryButton}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                pressed && styles.buttonPressed,
+              ]}
               onPress={() => void logout()}
             >
               <Text style={styles.secondaryButtonText}>Logout</Text>
@@ -464,7 +492,12 @@ export default function SettingsScreen() {
               your data synced.
             </Text>
             <Link href="/auth" asChild>
-              <Pressable style={styles.primaryButton}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
                 <Text style={styles.primaryButtonText}>Login / Register</Text>
               </Pressable>
             </Link>
@@ -489,7 +522,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.borderStrong,
     borderRadius: theme.radius.xl,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceElevated,
     padding: theme.spacing.md,
     ...theme.effects.softShadow,
   },
@@ -525,11 +558,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 7,
     paddingHorizontal: 11,
-    backgroundColor: theme.colors.surfaceElevated,
+    backgroundColor: theme.colors.chipDefaultBg,
   },
   currencyChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accentSoft,
+    backgroundColor: theme.colors.chipActiveBg,
   },
   currencyText: {
     color: theme.colors.textSecondary,
@@ -544,11 +577,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 7,
     paddingHorizontal: 12,
-    backgroundColor: theme.colors.surfaceElevated,
+    backgroundColor: theme.colors.chipDefaultBg,
   },
   toggleChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accentSoft,
+    backgroundColor: theme.colors.chipActiveBg,
   },
   toggleChipText: {
     color: theme.colors.textPrimary,
@@ -558,7 +591,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: theme.radius.md,
-    backgroundColor: theme.colors.surfaceElevated,
+    backgroundColor: theme.colors.surfaceSoft,
     color: theme.colors.textPrimary,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -586,10 +619,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     alignItems: "center",
-    backgroundColor: theme.colors.surfaceElevated,
+    backgroundColor: theme.colors.surfaceSoft,
   },
   secondaryButtonText: {
     color: theme.colors.textSecondary,
     fontWeight: "600",
+  },
+  buttonPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.92,
   },
 });

@@ -156,9 +156,10 @@ export default function HomeScreen() {
         contentContainerStyle={styles.filterRow}
       >
         <Pressable
-          style={[
+          style={({ pressed }) => [
             styles.filterChip,
             !categoryFilter && styles.filterChipActive,
+            pressed && styles.chipPressed,
           ]}
           onPress={() => setCategoryFilter(null)}
         >
@@ -167,9 +168,10 @@ export default function HomeScreen() {
         {categories.map((category) => (
           <Pressable
             key={category}
-            style={[
+            style={({ pressed }) => [
               styles.filterChip,
               categoryFilter === category && styles.filterChipActive,
+              pressed && styles.chipPressed,
             ]}
             onPress={() => setCategoryFilter(category)}
           >
@@ -186,9 +188,10 @@ export default function HomeScreen() {
           {(["renewal_date", "amount", "name"] as const).map((value) => (
             <Pressable
               key={value}
-              style={[
+              style={({ pressed }) => [
                 styles.sortChip,
                 sortBy === value && styles.sortChipActive,
+                pressed && styles.chipPressed,
               ]}
               onPress={() => setSortBy(value)}
             >
@@ -202,7 +205,11 @@ export default function HomeScreen() {
             </Pressable>
           ))}
           <Pressable
-            style={[styles.sortChip, styles.sortChipOrder]}
+            style={({ pressed }) => [
+              styles.sortChip,
+              styles.sortChipOrder,
+              pressed && styles.chipPressed,
+            ]}
             onPress={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
           >
             <Text style={styles.sortChipText}>
@@ -233,6 +240,16 @@ export default function HomeScreen() {
           Yearly total:{" "}
           {formatCurrency(analytics?.yearly_total ?? 0, preferredCurrency)}
         </Text>
+        <View style={styles.heroMetaRow}>
+          <View style={styles.heroMetaChip}>
+            <Text style={styles.heroMetaText}>{subscriptions.length} tracked</Text>
+          </View>
+          <View style={styles.heroMetaChip}>
+            <Text style={styles.heroMetaText}>
+              {analytics?.upcoming_renewals_count ?? 0} upcoming
+            </Text>
+          </View>
+        </View>
       </View>
 
       <View style={styles.insightRow}>
@@ -263,7 +280,12 @@ export default function HomeScreen() {
 
       {needsAuthForMoreSubscriptions ? (
         <Link href="/auth" asChild>
-          <Pressable style={styles.authPrompt}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.authPrompt,
+              pressed && styles.buttonPressed,
+            ]}
+          >
             <Text style={styles.authPromptTitle}>
               Unlock unlimited subscriptions
             </Text>
@@ -291,6 +313,11 @@ export default function HomeScreen() {
             <Text style={styles.emptyText}>
               Use the Add tab to track Netflix, Spotify, and more.
             </Text>
+            <Link href="/(tabs)/add" asChild>
+              <Pressable style={({ pressed }) => [styles.emptyCta, pressed && styles.buttonPressed]}>
+                <Text style={styles.emptyCtaText}>Add your first subscription</Text>
+              </Pressable>
+            </Link>
           </View>
         }
         renderItem={({ item }) => (
@@ -344,21 +371,39 @@ export default function HomeScreen() {
                 {item.billing_cycle}
               </Text>
               <View style={styles.itemActionRow}>
-                <Pressable onPress={() => void handleMarkRenewed(item.id)}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.iconActionButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                  onPress={() => void handleMarkRenewed(item.id)}
+                >
                   <FontAwesome5
                     name="check-circle"
                     size={16}
                     color={theme.colors.success}
                   />
                 </Pressable>
-                <Pressable onPress={() => openEditModal(item)}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.iconActionButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                  onPress={() => openEditModal(item)}
+                >
                   <FontAwesome5
                     name="edit"
                     size={16}
                     color={theme.colors.textSecondary}
                   />
                 </Pressable>
-                <Pressable onPress={() => void deleteSubscription(item.id)}>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.iconActionButton,
+                    pressed && styles.buttonPressed,
+                  ]}
+                  onPress={() => void deleteSubscription(item.id)}
+                >
                   <FontAwesome5
                     name="trash"
                     size={16}
@@ -449,13 +494,19 @@ export default function HomeScreen() {
             />
             <View style={styles.modalActions}>
               <Pressable
-                style={styles.secondaryButton}
+                style={({ pressed }) => [
+                  styles.secondaryButton,
+                  pressed && styles.buttonPressed,
+                ]}
                 onPress={() => setEditingSubscription(null)}
               >
                 <Text style={styles.secondaryButtonText}>Cancel</Text>
               </Pressable>
               <Pressable
-                style={styles.primaryButton}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  pressed && styles.buttonPressed,
+                ]}
                 onPress={() => void submitEdit()}
               >
                 <Text style={styles.primaryButtonText}>Save</Text>
@@ -481,11 +532,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   heroCard: {
-    backgroundColor: theme.colors.surfaceElevated,
+    backgroundColor: theme.colors.surfaceAccent,
     borderRadius: theme.radius.xl,
     padding: theme.spacing.lg,
     borderWidth: 1,
-    borderColor: theme.colors.borderStrong,
+    borderColor: theme.colors.accentAlt,
     ...theme.effects.cardShadow,
     marginBottom: theme.spacing.md,
   },
@@ -502,6 +553,24 @@ const styles = StyleSheet.create({
   heroSubLabel: {
     color: theme.colors.textSecondary,
     marginTop: theme.spacing.xs,
+  },
+  heroMetaRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: theme.spacing.md,
+  },
+  heroMetaChip: {
+    borderWidth: 1,
+    borderColor: theme.colors.borderStrong,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  heroMetaText: {
+    color: theme.colors.textPrimary,
+    fontSize: 12,
+    fontWeight: "600",
   },
   insightRow: {
     flexDirection: "row",
@@ -531,7 +600,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.colors.warning,
-    backgroundColor: theme.colors.surfaceSoft,
+    backgroundColor: theme.colors.warningBg,
     padding: theme.spacing.md,
     marginBottom: theme.spacing.md,
   },
@@ -545,7 +614,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   authPrompt: {
-    backgroundColor: theme.colors.accentSoft,
+    backgroundColor: theme.colors.infoBg,
     borderRadius: theme.radius.lg,
     borderWidth: 1,
     borderColor: theme.colors.accent,
@@ -602,11 +671,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.chipDefaultBg,
   },
   filterChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accentSoft,
+    backgroundColor: theme.colors.chipActiveBg,
   },
   filterText: {
     color: theme.colors.textPrimary,
@@ -624,11 +693,11 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.chipDefaultBg,
   },
   sortChipActive: {
     borderColor: theme.colors.accent,
-    backgroundColor: theme.colors.accentSoft,
+    backgroundColor: theme.colors.chipActiveBg,
   },
   sortChipOrder: {
     borderColor: theme.colors.warning,
@@ -645,6 +714,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     backgroundColor: theme.colors.surface,
     padding: theme.spacing.lg,
+    alignItems: "flex-start",
+    gap: 8,
   },
   emptyTitle: {
     color: theme.colors.textPrimary,
@@ -654,6 +725,18 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: theme.colors.textSecondary,
+    lineHeight: 20,
+  },
+  emptyCta: {
+    marginTop: 6,
+    borderRadius: theme.radius.md,
+    backgroundColor: theme.colors.accent,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  emptyCtaText: {
+    color: theme.colors.textPrimary,
+    fontWeight: "700",
   },
   itemCard: {
     flexDirection: "row",
@@ -662,7 +745,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.lg,
     borderColor: theme.colors.border,
     borderWidth: 1,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.surfaceElevated,
     padding: theme.spacing.md,
     gap: theme.spacing.sm,
     ...theme.effects.softShadow,
@@ -732,6 +815,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+  },
+  iconActionButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.chipDefaultBg,
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
   },
   itemPrice: {
     color: theme.colors.textPrimary,
@@ -835,5 +928,13 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: theme.colors.textPrimary,
     fontWeight: "700",
+  },
+  buttonPressed: {
+    opacity: 0.86,
+    transform: [{ scale: 0.98 }],
+  },
+  chipPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.97 }],
   },
 });
