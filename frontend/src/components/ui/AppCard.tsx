@@ -3,7 +3,7 @@ import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
 import { theme } from "../../constants/theme";
 
-type AppCardVariant = "default" | "elevated" | "accent";
+type AppCardVariant = "default" | "elevated" | "accent" | "warning";
 type AppCardPadding = "md" | "lg";
 
 type AppCardProps = {
@@ -26,6 +26,7 @@ export function AppCard({
         variant === "default" && styles.defaultCard,
         variant === "elevated" && styles.elevatedCard,
         variant === "accent" && styles.accentCard,
+        variant === "warning" && styles.warningCard,
         padding === "md" ? styles.paddingMd : styles.paddingLg,
         style,
       ]}
@@ -53,6 +54,10 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.accentAlt,
     backgroundColor: theme.colors.surfaceAccent,
     ...theme.effects.cardShadow,
+  },
+  warningCard: {
+    borderColor: theme.colors.warning,
+    backgroundColor: theme.colors.warningBg,
   },
   paddingMd: {
     padding: theme.spacing.md,
